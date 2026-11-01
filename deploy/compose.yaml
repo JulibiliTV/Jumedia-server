@@ -1,0 +1,24 @@
+# Production deployment. Put this file and an optional .env (JUMEDIA_* overrides) in one directory,
+# then: docker compose pull && docker compose up -d
+# Data lives in JUMEDIA_HOST_DATA (default /data/jumedia), which must be writable by uid 10001.
+services:
+  jumedia:
+    image: ${JUMEDIA_IMAGE:-ghcr.io/julibilitv/jumedia-server:latest}
+    container_name: jumedia
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${JUMEDIA_PORT:-8098}:8080"
+    volumes:
+      - ${JUMEDIA_HOST_DATA:-/data/jumedia}:/data
+    environment:
+      JUMEDIA_PUBLIC_ORIGIN: ${JUMEDIA_PUBLIC_ORIGIN:-}
+      JUMEDIA_SEED: ${JUMEDIA_SEED:-true}
+      JUMEDIA_EMBY_URL: ${JUMEDIA_EMBY_URL:-}
+      JUMEDIA_EMBY_USERNAME: ${JUMEDIA_EMBY_USERNAME:-}
+      JUMEDIA_EMBY_PASSWORD: ${JUMEDIA_EMBY_PASSWORD:-}
+      JUMEDIA_FFMPEG_VIDEO_ENCODER: ${JUMEDIA_FFMPEG_VIDEO_ENCODER:-libx264}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

@@ -1,0 +1,11 @@
+.git
+.github
+data
+jumedia
+*.db
+*.db-*
+*.test
+coverage.out
+.env*
+web
+deploy

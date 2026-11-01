@@ -84,6 +84,27 @@ go run ./cmd/jumedia reset
 
 ## 部署
 
+### Docker
+
+镜像包含服务端、网页端和 ffmpeg，数据保存在容器内的 `/data`（以 uid 10001 运行）。推送到 `main` 后，GitHub Actions 会构建并发布 `ghcr.io/julibilitv/jumedia-server:latest`；网页端代码通过只读部署密钥（仓库 Secret `WEB_DEPLOY_KEY`）从 Jumedia-web 拉取。网页端更新后需手动触发一次构建：
+
+```sh
+gh workflow run docker.yml -R JulibiliTV/Jumedia-server
+```
+
+本地构建（Jumedia-web 与本仓库同级）：
+
+```sh
+docker buildx build --build-context web=../Jumedia-web -t jumedia .
+```
+
+服务器上使用 `deploy/compose.yaml`，在同目录的 `.env` 中设置 `JUMEDIA_PUBLIC_ORIGIN` 等变量，容器只监听 `127.0.0.1:8098`，由宿主机的反向代理对外提供 HTTPS：
+
+```sh
+mkdir -p /data/jumedia && chown 10001 /data/jumedia
+docker compose pull && docker compose up -d
+```
+
 ### 由服务端直接提供网页
 
 ```sh
