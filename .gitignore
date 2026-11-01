@@ -1,0 +1,11 @@
+/data/
+/jumedia
+*.test
+coverage.out
+*.db
+*.db-*
+.env*
+.DS_Store
+.idea
+.vscode
+*.log

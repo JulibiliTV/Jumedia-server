@@ -1,0 +1,622 @@
+{
+  "arc": {
+    "aid": 100100,
+    "bvid": "BV1dx411c7ox",
+    "videos": 3,
+    "tid": 1012,
+    "tname": "科技数码",
+    "copyright": 1,
+    "pic": "ART",
+    "title": "拆解一台十年前的旗舰手机，发现了什么？",
+    "pubdate": -951060,
+    "ctime": -951660,
+    "desc": "从屏幕排线到主板布局，看看十年前的工程师如何堆料。",
+    "state": 0,
+    "duration": 2630,
+    "owner": {
+      "mid": 2,
+      "name": "流明实验室",
+      "face": "ART"
+    },
+    "stat": {
+      "aid": 100100,
+      "view": 335829,
+      "danmaku": 1343,
+      "reply": 503,
+      "favorite": 6716,
+      "coin": 3358,
+      "share": 671,
+      "like": 16791,
+      "his_rank": 0,
+      "now_rank": 0,
+      "evaluation": "",
+      "vt": 0
+    },
+    "dynamic": "",
+    "cid": 50001,
+    "dimension": {
+      "width": 1280,
+      "height": 720,
+      "rotate": 0
+    },
+    "is_upower_exclusive": false,
+    "tag": "日常",
+    "pages": [
+      {
+        "cid": 50001,
+        "page": 1,
+        "from": "vupload",
+        "part": "P1 准备",
+        "duration": 582,
+        "dimension": {
+          "width": 1280,
+          "height": 720,
+          "rotate": 0
+        }
+      },
+      {
+        "cid": 50002,
+        "page": 2,
+        "from": "vupload",
+        "part": "P2 过程",
+        "duration": 985,
+        "dimension": {
+          "width": 1280,
+          "height": 720,
+          "rotate": 0
+        }
+      },
+      {
+        "cid": 50003,
+        "page": 3,
+        "from": "vupload",
+        "part": "P3 成品",
+        "duration": 1063,
+        "dimension": {
+          "width": 1280,
+          "height": 720,
+          "rotate": 0
+        }
+      }
+    ],
+    "ugc_season": {
+      "id": 1001,
+      "title": "流明实验室的精选合集",
+      "cover": "ART",
+      "mid": 2,
+      "intro": "按发布时间整理的系列作品",
+      "ep_count": 4,
+      "sections": [
+        {
+          "id": 10010,
+          "title": "正片",
+          "season_id": 1001,
+          "episodes": [
+            {
+              "id": 100100,
+              "aid": 100100,
+              "cid": 50001,
+              "bvid": "BV1dx411c7ox",
+              "title": "拆解一台十年前的旗舰手机，发现了什么？",
+              "arc": {
+                "aid": 100100,
+                "pic": "ART",
+                "title": "拆解一台十年前的旗舰手机，发现了什么？",
+                "duration": 2630,
+                "ctime": -951660,
+                "pubdate": -951060,
+                "stat": {
+                  "view": 335829,
+                  "danmaku": 1343
+                },
+                "author": {
+                  "mid": 2,
+                  "name": "流明实验室",
+                  "face": "ART"
+                }
+              }
+            },
+            {
+              "id": 100177,
+              "aid": 100177,
+              "cid": 50016,
+              "bvid": "BV1dx411c7RZ",
+              "title": "城市街头的 Freestyle 合集",
+              "arc": {
+                "aid": 100177,
+                "pic": "ART",
+                "title": "城市街头的 Freestyle 合集",
+                "duration": 654,
+                "ctime": -4417655,
+                "pubdate": -4417055,
+                "stat": {
+                  "view": 417048,
+                  "danmaku": 1668
+                },
+                "author": {
+                  "mid": 2,
+                  "name": "流明实验室",
+                  "face": "ART"
+                }
+              }
+            },
+            {
+              "id": 100254,
+              "aid": 100254,
+              "cid": 50031,
+              "bvid": "BV1dx411c792",
+              "title": "羽毛球后场杀球发力详解",
+              "arc": {
+                "aid": 100254,
+                "pic": "ART",
+                "title": "羽毛球后场杀球发力详解",
+                "duration": 1051,
+                "ctime": -3908011,
+                "pubdate": -3907411,
+                "stat": {
+                  "view": 804950,
+                  "danmaku": 3219
+                },
+                "author": {
+                  "mid": 2,
+                  "name": "流明实验室",
+                  "face": "ART"
+                }
+              }
+            },
+            {
+              "id": 100331,
+              "aid": 100331,
+              "cid": 50044,
+              "bvid": "BV1dx411c79s",
+              "title": "街头钢琴即兴：路人都停下来了",
+              "arc": {
+                "aid": 100331,
+                "pic": "ART",
+                "title": "街头钢琴即兴：路人都停下来了",
+                "duration": 530,
+                "ctime": -182548,
+                "pubdate": -181948,
+                "stat": {
+                  "view": 448850,
+                  "danmaku": 1795
+                },
+                "author": {
+                  "mid": 2,
+                  "name": "流明实验室",
+                  "face": "ART"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "noCollection": {
+    "aid": 100170,
+    "bvid": "BV1dx411c7dN",
+    "videos": 1,
+    "tid": 1004,
+    "tname": "舞蹈",
+    "copyright": 1,
+    "pic": "ART",
+    "title": "一分钟爵士舞基础组合｜跟跳版",
+    "pubdate": -3779593,
+    "ctime": -3780193,
+    "desc": "镜面教学，适合零基础。",
+    "state": 0,
+    "duration": 994,
+    "owner": {
+      "mid": 12,
+      "name": "漂移老王",
+      "face": "ART"
+    },
+    "stat": {
+      "aid": 100170,
+      "view": 241948,
+      "danmaku": 967,
+      "reply": 362,
+      "favorite": 4838,
+      "coin": 2419,
+      "share": 483,
+      "like": 12097,
+      "his_rank": 0,
+      "now_rank": 0,
+      "evaluation": "",
+      "vt": 0
+    },
+    "dynamic": "",
+    "cid": 50015,
+    "dimension": {
+      "width": 1280,
+      "height": 720,
+      "rotate": 0
+    },
+    "is_upower_exclusive": false,
+    "tag": "日常,教程",
+    "pages": [
+      {
+        "cid": 50015,
+        "page": 1,
+        "from": "vupload",
+        "part": "一分钟爵士舞基础组合｜跟跳版",
+        "duration": 994,
+        "dimension": {
+          "width": 1280,
+          "height": 720,
+          "rotate": 0
+        }
+      }
+    ]
+  },
+  "ugc": {
+    "id": 1001,
+    "title": "流明实验室的精选合集",
+    "cover": "ART",
+    "mid": 2,
+    "intro": "按发布时间整理的系列作品",
+    "ep_count": 4,
+    "sections": [
+      {
+        "id": 10010,
+        "title": "正片",
+        "season_id": 1001,
+        "episodes": [
+          {
+            "id": 100100,
+            "aid": 100100,
+            "cid": 50001,
+            "bvid": "BV1dx411c7ox",
+            "title": "拆解一台十年前的旗舰手机，发现了什么？",
+            "arc": {
+              "aid": 100100,
+              "pic": "ART",
+              "title": "拆解一台十年前的旗舰手机，发现了什么？",
+              "duration": 2630,
+              "ctime": -951660,
+              "pubdate": -951060,
+              "stat": {
+                "view": 335829,
+                "danmaku": 1343
+              },
+              "author": {
+                "mid": 2,
+                "name": "流明实验室",
+                "face": "ART"
+              }
+            }
+          },
+          {
+            "id": 100177,
+            "aid": 100177,
+            "cid": 50016,
+            "bvid": "BV1dx411c7RZ",
+            "title": "城市街头的 Freestyle 合集",
+            "arc": {
+              "aid": 100177,
+              "pic": "ART",
+              "title": "城市街头的 Freestyle 合集",
+              "duration": 654,
+              "ctime": -4417655,
+              "pubdate": -4417055,
+              "stat": {
+                "view": 417048,
+                "danmaku": 1668
+              },
+              "author": {
+                "mid": 2,
+                "name": "流明实验室",
+                "face": "ART"
+              }
+            }
+          },
+          {
+            "id": 100254,
+            "aid": 100254,
+            "cid": 50031,
+            "bvid": "BV1dx411c792",
+            "title": "羽毛球后场杀球发力详解",
+            "arc": {
+              "aid": 100254,
+              "pic": "ART",
+              "title": "羽毛球后场杀球发力详解",
+              "duration": 1051,
+              "ctime": -3908011,
+              "pubdate": -3907411,
+              "stat": {
+                "view": 804950,
+                "danmaku": 3219
+              },
+              "author": {
+                "mid": 2,
+                "name": "流明实验室",
+                "face": "ART"
+              }
+            }
+          },
+          {
+            "id": 100331,
+            "aid": 100331,
+            "cid": 50044,
+            "bvid": "BV1dx411c79s",
+            "title": "街头钢琴即兴：路人都停下来了",
+            "arc": {
+              "aid": 100331,
+              "pic": "ART",
+              "title": "街头钢琴即兴：路人都停下来了",
+              "duration": 530,
+              "ctime": -182548,
+              "pubdate": -181948,
+              "stat": {
+                "view": 448850,
+                "danmaku": 1795
+              },
+              "author": {
+                "mid": 2,
+                "name": "流明实验室",
+                "face": "ART"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "space": {
+    "aid": 100100,
+    "bvid": "BV1dx411c7ox",
+    "title": "拆解一台十年前的旗舰手机，发现了什么？",
+    "pic": "ART",
+    "description": "从屏幕排线到主板布局，看看十年前的工程师如何堆料。",
+    "play": 335829,
+    "video_review": 1343,
+    "comment": 503,
+    "length": "43:50",
+    "duration": 2630,
+    "created": -951060,
+    "pubdate": -951060,
+    "mid": 2,
+    "author": "流明实验室",
+    "typeid": 1012,
+    "stat": {
+      "view": 335829,
+      "danmaku": 1343
+    },
+    "cid": 50001
+  },
+  "feed": {
+    "card_type": "small_cover_v2",
+    "card_goto": "av",
+    "goto": "av",
+    "param": "100100",
+    "cover": "ART",
+    "title": "拆解一台十年前的旗舰手机，发现了什么？",
+    "uri": "/video/BV1dx411c7ox",
+    "cover_left_text_2": "33.6万",
+    "cover_left_text_3": "1343",
+    "cover_right_text": "43:50",
+    "args": {
+      "up_id": 2,
+      "up_name": "流明实验室",
+      "rid": 1012,
+      "rname": "科技数码",
+      "aid": 100100
+    },
+    "player_args": {
+      "aid": 100100,
+      "cid": 50001,
+      "type": "av",
+      "duration": 2630
+    },
+    "bvid": "BV1dx411c7ox",
+    "pubdate": -951060,
+    "owner": {
+      "mid": 2,
+      "name": "流明实验室",
+      "face": "ART"
+    },
+    "three_point": {
+      "dislike_reasons": [
+        {
+          "id": 1,
+          "name": "不感兴趣"
+        },
+        {
+          "id": 4,
+          "name": "UP主：流明实验室"
+        },
+        {
+          "id": 3,
+          "name": "分区：科技数码"
+        }
+      ]
+    }
+  },
+  "season": {
+    "season_id": 40000,
+    "media_id": 28040000,
+    "season_type": 1,
+    "title": "星海旅团",
+    "cover": "ART",
+    "ss_horizontal_cover": "ART",
+    "badge": "番剧",
+    "badge_info": {
+      "text": "番剧"
+    },
+    "index_show": "更新至第6话",
+    "is_finish": 0,
+    "rating": "8.2分",
+    "score": "8.2",
+    "order": "1418.7万次播放",
+    "stat": {
+      "view": 14187350,
+      "follow": 535879,
+      "danmaku": 49313
+    },
+    "new_ep": {
+      "id": 300006,
+      "index_show": "更新至第6话",
+      "cover": "ART"
+    },
+    "first_ep": {
+      "ep_id": 300001,
+      "cover": "ART"
+    },
+    "evaluate": "少女与机器人驾驶着旧飞船，在群星之间寻找失落的家园。",
+    "areas": "日本",
+    "styles": "科幻 / 冒险",
+    "link": "/bangumi/play/ss40000",
+    "url": "/bangumi/play/ss40000"
+  },
+  "movie": {
+    "season_id": 40088,
+    "media_id": 28040088,
+    "season_type": 2,
+    "title": "最后一班地铁",
+    "cover": "ART",
+    "ss_horizontal_cover": "ART",
+    "badge": "电影",
+    "badge_info": {
+      "text": "电影"
+    },
+    "index_show": "全片",
+    "is_finish": 1,
+    "rating": "9.5分",
+    "score": "9.5",
+    "order": "3056.5万次播放",
+    "stat": {
+      "view": 30565462,
+      "follow": 2124996,
+      "danmaku": 123976
+    },
+    "new_ep": {
+      "id": 300065,
+      "index_show": "全片",
+      "cover": "ART"
+    },
+    "first_ep": {
+      "ep_id": 300065,
+      "cover": "ART"
+    },
+    "evaluate": "午夜的最后一班地铁上，五个陌生人的故事交织在一起。",
+    "areas": "中国大陆",
+    "styles": "剧情 / 都市",
+    "link": "/bangumi/play/ss40088",
+    "url": "/bangumi/play/ss40088"
+  },
+  "room": {
+    "roomid": 20000,
+    "room_id": 20000,
+    "uid": 1,
+    "title": "聚媒官方 · m3u8 转播频道",
+    "uname": "聚媒官方",
+    "face": "ART",
+    "online": 3260,
+    "user_cover": "ART",
+    "system_cover": "ART",
+    "cover": "ART",
+    "room_cover": "ART",
+    "area_v2_name": "影音馆",
+    "area_name": "影音馆",
+    "area_v2_parent_name": "生活",
+    "area_v2_id": 215,
+    "area_v2_parent_id": 10,
+    "live_status": 1,
+    "text_small": "3260",
+    "watched_show": {
+      "num": 3260,
+      "text_large": "3260人看过",
+      "text_small": "3260"
+    },
+    "live_time": 0
+  },
+  "reply": {
+    "rpid": 1009,
+    "rpid_str": "1009",
+    "oid": 100100,
+    "type": 1,
+    "mid": 2,
+    "root": 0,
+    "parent": 0,
+    "count": 0,
+    "rcount": 0,
+    "ctime": -809646,
+    "like": 1,
+    "action": 0,
+    "member": {
+      "mid": "2",
+      "uname": "流明实验室",
+      "avatar": "ART",
+      "sex": "女",
+      "sign": "用影像拆解光与色。",
+      "level_info": {
+        "current_level": 5,
+        "current_min": 0,
+        "current_exp": 11300,
+        "next_exp": 12000
+      },
+      "vip": {
+        "vipStatus": 0,
+        "vipType": 0
+      }
+    },
+    "content": {
+      "message": "这个角度从来没想过，学到了",
+      "members": [],
+      "pictures": []
+    },
+    "replies": [],
+    "up_action": {
+      "like": false,
+      "reply": false
+    }
+  },
+  "member": {
+    "mid": "1",
+    "uname": "聚媒官方",
+    "avatar": "ART",
+    "sex": "男",
+    "sign": "欢迎来到 Jumedia，一起记录、分享与发现。",
+    "level_info": {
+      "current_level": 6,
+      "current_min": 0,
+      "current_exp": 12000,
+      "next_exp": "--"
+    },
+    "vip": {
+      "vipStatus": 1,
+      "vipType": 2
+    }
+  },
+  "missingMember": {
+    "mid": "999",
+    "uname": "已注销用户",
+    "avatar": "",
+    "sex": "保密",
+    "sign": "",
+    "level_info": {
+      "current_level": 0
+    },
+    "vip": {
+      "vipStatus": 0,
+      "vipType": 0
+    }
+  },
+  "owner": {
+    "mid": 1,
+    "name": "聚媒官方",
+    "face": "ART"
+  },
+  "missingOwner": {
+    "mid": 999,
+    "name": "已注销用户",
+    "face": ""
+  },
+  "level": {
+    "current_level": 6,
+    "current_min": 0,
+    "current_exp": 12000,
+    "next_exp": "--"
+  }
+}

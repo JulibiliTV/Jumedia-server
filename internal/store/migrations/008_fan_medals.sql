@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS fan_medals (
+ medal_id BIGINT PRIMARY KEY,
+ mid BIGINT NOT NULL REFERENCES users(mid) ON DELETE CASCADE,
+ ruid BIGINT NOT NULL REFERENCES users(mid) ON DELETE CASCADE,
+ intimacy BIGINT NOT NULL DEFAULT 0,
+ today INTEGER NOT NULL DEFAULT 0,
+ day INTEGER NOT NULL DEFAULT 0,
+ wearing INTEGER NOT NULL DEFAULT 0 CHECK (wearing IN (0,1)),
+ ctime BIGINT NOT NULL DEFAULT 0,
+ UNIQUE (mid,ruid)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fan_medals_wearing ON fan_medals(mid) WHERE wearing=1;
+CREATE INDEX IF NOT EXISTS idx_fan_medals_rank ON fan_medals(ruid,intimacy);
