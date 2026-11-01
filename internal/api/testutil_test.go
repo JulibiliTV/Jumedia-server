@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,8 +21,6 @@ import (
 	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 	"jumedia-server/internal/testutil"
-	"os"
-	"path/filepath"
 )
 
 func newTestServer(t *testing.T) *Server {
@@ -30,19 +29,14 @@ func newTestServer(t *testing.T) *Server {
 }
 func testServer(t *testing.T, s *store.Store) *Server {
 	t.Helper()
-	if err := seed.Seed(context.Background(), s, testdata.Catalog()); err != nil {
+	if err := seedfixture.Seed(context.Background(), s, testdata.Catalog()); err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	catalogPath := filepath.Join(dir, "catalog.json")
-	data, err := json.Marshal(testdata.Catalog())
-	if err != nil {
+	if err := seed.Admin(context.Background(), s, "jumedia", "admin123"); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(catalogPath, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	srv := New(s, config.Config{DataDir: dir, EmbyCatalog: catalogPath})
+	srv := New(s, config.Config{DataDir: dir})
 	t.Cleanup(srv.CloseDataSources)
 	return srv
 }

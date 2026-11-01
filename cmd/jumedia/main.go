@@ -13,7 +13,6 @@ import (
 
 	"jumedia-server/internal/api"
 	"jumedia-server/internal/config"
-	"jumedia-server/internal/emby"
 	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 )
@@ -25,8 +24,9 @@ func main() {
 	}
 }
 func run() error {
-	if len(os.Args) > 2 || (len(os.Args) == 2 && os.Args[1] != "reset") {
-		return fmt.Errorf("usage: jumedia [reset]")
+	args := os.Args[1:]
+	if len(args) > 0 && !(len(args) == 1 && args[0] == "reset" || len(args) == 3 && args[0] == "admin" || len(args) == 3 && args[0] == "demo" && args[1] == "import") {
+		return fmt.Errorf("usage: jumedia [reset | admin <username> <password> | demo import <file>]")
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -39,24 +39,16 @@ func run() error {
 		return err
 	}
 	defer s.Close()
-	catalog, err := emby.LoadCatalog(cfg.EmbyCatalog)
-	if err != nil {
+	if err = seed.Seed(ctx, s); err != nil {
 		return err
 	}
-	if len(os.Args) == 2 {
-		if err = seed.Reset(ctx, s, catalog); err != nil {
+	if len(args) == 3 && args[0] == "admin" {
+		return seed.Admin(ctx, s, args[1], args[2])
+	}
+	if len(args) == 0 {
+		if err = seed.BootstrapAdmin(ctx, s, cfg.AdminUsername, cfg.AdminPassword); err != nil {
 			return err
 		}
-		slog.Info("database reset complete")
-		return nil
-	}
-	if cfg.Seed {
-		if err = seed.Seed(ctx, s, catalog); err != nil {
-			return err
-		}
-	}
-	if err = seed.MigrateMedia(ctx, s, catalog); err != nil {
-		return err
 	}
 	if err = os.MkdirAll(cfg.UploadDir(), 0755); err != nil {
 		return err
@@ -66,6 +58,40 @@ func run() error {
 		return err
 	}
 	defer handler.CloseDataSources()
+	if err = handler.InitDemoMedia(ctx); err != nil {
+		return err
+	}
+	if len(args) == 1 && args[0] == "reset" {
+		if err = handler.ResetApplication(ctx); err != nil {
+			return err
+		}
+		if err = seed.BootstrapAdmin(ctx, s, cfg.AdminUsername, cfg.AdminPassword); err != nil {
+			return err
+		}
+		slog.Info("database reset complete")
+		return nil
+	}
+	if len(args) == 3 && args[0] == "demo" {
+		raw, e := os.ReadFile(args[2])
+		if e != nil {
+			return e
+		}
+		p, e := seed.ParsePackage(raw)
+		if e != nil {
+			return e
+		}
+		return handler.ImportDemo(ctx, p)
+	}
+	catalog, err := seed.StoredCatalog(ctx, s)
+	if err != nil {
+		return err
+	}
+	if len(catalog.Series)+len(catalog.Movies) > 0 {
+		if err = seed.MigrateMedia(ctx, s, catalog); err != nil {
+			return err
+		}
+	}
+
 	if err = handler.InitLiveCaches(ctx); err != nil {
 		return err
 	}

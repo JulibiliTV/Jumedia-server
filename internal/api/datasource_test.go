@@ -664,7 +664,12 @@ func TestDataSourceRealSmoke(t *testing.T) {
 	}
 	s := newTestServer(t)
 	admin := login(t, s, "jumedia", "admin123")
-	p := url.Values{"url": {"https://emby.example.test"}, "username": {"test"}}
+	address, username := os.Getenv("JUMEDIA_TEST_EMBY_URL"), os.Getenv("JUMEDIA_TEST_EMBY_USERNAME")
+	password, ok := os.LookupEnv("JUMEDIA_TEST_EMBY_PASSWORD")
+	if address == "" || username == "" || !ok {
+		t.Skip("configure JUMEDIA_TEST_EMBY_URL/USERNAME/PASSWORD")
+	}
+	p := url.Values{"url": {address}, "username": {username}, "password": {password}}
 	info := sourceData(t, sourcePost(t, s, admin, "/x/admin/datasource/test", p))
 	libs := info["libraries"].([]any)
 	if len(libs) == 0 {

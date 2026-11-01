@@ -60,7 +60,7 @@ func (s *Server) serverSnapshot() (serverValues, *emby.Client) {
 	r := s.runtime
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	// The demo Emby client is created once from startup parameters in New.
+	// Demo media is refreshed after import/reset from persisted credentials.
 	return r.current, s.Emby
 }
 func (s *Server) embyClient() *emby.Client { _, client := s.serverSnapshot(); return client }
@@ -133,10 +133,7 @@ func (s *Server) adminServer(c *Ctx) (any, error) {
 	r := s.runtime
 	cfg := r.boot
 	v := r.startup
-	seed, key := "否", "未设置"
-	if cfg.Seed {
-		seed = "是"
-	}
+	key := "未设置"
 	if r.sourceKeySet {
 		key = "已设置"
 	}
@@ -144,7 +141,7 @@ func (s *Server) adminServer(c *Ctx) (any, error) {
 	for _, entry := range [][3]string{
 		{"JUMEDIA_ADDR", "监听地址", cfg.Addr}, {"JUMEDIA_DB_DRIVER", "数据库", cfg.DBDriver}, {"JUMEDIA_DB_DSN", "数据库连接", serverRedactDSN(cfg.DBDSN)},
 		{"JUMEDIA_DATA_DIR", "数据目录", cfg.DataDir}, {"JUMEDIA_WEB_DIR", "网页目录", cfg.WebDir}, {"JUMEDIA_STATIC_DIR", "静态资源目录", cfg.StaticDir},
-		{"JUMEDIA_SEED", "空库写入演示数据", seed}, {"JUMEDIA_DATASOURCE_KEY", "数据源密钥", key},
+		{"JUMEDIA_DATASOURCE_KEY", "数据源密钥", key},
 	} {
 		boot = append(boot, map[string]string{"key": entry[0], "label": entry[1], "value": entry[2]})
 	}

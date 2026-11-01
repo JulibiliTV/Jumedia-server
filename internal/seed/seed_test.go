@@ -3,13 +3,13 @@ package seed_test
 import (
 	"context"
 	"encoding/json"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"jumedia-server/internal/emby/testdata"
 	"jumedia-server/internal/seed"
-	contract "jumedia-server/internal/seed/testdata"
 	"jumedia-server/internal/store"
 	"jumedia-server/internal/testutil"
 )
@@ -17,11 +17,11 @@ import (
 func TestSeedContract(t *testing.T) {
 	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
 		ctx := context.Background()
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		var counts map[string]int
-		if err := json.Unmarshal([]byte(contract.Counts), &counts); err != nil {
+		if err := json.Unmarshal([]byte(seedfixture.Counts), &counts); err != nil {
 			t.Fatal(err)
 		}
 		counts["regions"] = 67
@@ -51,7 +51,7 @@ func TestSeedContract(t *testing.T) {
 			}
 		}
 		check()
-		for _, v := range []struct{ name, pw string }{{"jumedia", "admin123"}, {"lumen", "demo123"}} {
+		for _, v := range []struct{ name, pw string }{{"jumedia", "demo123"}, {"lumen", "demo123"}} {
 			u, e := s.UserByUsername(ctx, v.name)
 			if e != nil {
 				t.Fatal(e)
@@ -80,7 +80,7 @@ func TestSeedContract(t *testing.T) {
 		if err != nil || fans != 9875 {
 			t.Fatalf("followers %d %v", fans, err)
 		}
-		if err = seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err = seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		check()
@@ -97,10 +97,12 @@ func TestSeedContract(t *testing.T) {
 		if err = s.SetSetting(ctx, "siteName", "changed"); err != nil {
 			t.Fatal(err)
 		}
-		if err = seed.Reset(ctx, s, testdata.Catalog()); err != nil {
+		if err = seed.Reset(ctx, s); err != nil {
 			t.Fatal(err)
 		}
-		check()
+		if err = s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&n); err != nil || n != 0 {
+			t.Fatal(n, err)
+		}
 		v, err := s.Setting(ctx, "siteName")
 		if err != nil || v != "Jumedia" {
 			t.Fatalf("reset setting %v %v", v, err)
@@ -108,21 +110,21 @@ func TestSeedContract(t *testing.T) {
 	})
 }
 
-func TestFailedSeedIsAtomic(t *testing.T) {
-	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
-		ctx := context.Background()
-		if err := store.InsertRegion(ctx, s.DB, &store.Region{TID: 1005, Name: "preexisting"}); err != nil {
-			t.Fatal(err)
-		}
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err == nil {
-			t.Fatal("expected conflicting region")
-		}
-		var n int
-		if err := s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&n); err != nil || n != 0 {
-			t.Fatalf("partial seed users=%d err=%v", n, err)
-		}
-		if err := s.DB.QueryRowContext(ctx, "SELECT value FROM ids WHERE name='global'").Scan(&n); err != nil || n != 1000 {
-			t.Fatalf("partial sequence %d %v", n, err)
-		}
-	})
+func TestBasePreservesExistingRegions(t *testing.T) {
+	s := testutil.Open(t, "sqlite")
+	ctx := t.Context()
+	if err := store.InsertRegion(ctx, s.DB, &store.Region{TID: 1005, Name: "preexisting"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := seed.Seed(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	var name string
+	if err := s.DB.QueryRowContext(ctx, "SELECT name FROM regions WHERE tid=?", 1005).Scan(&name); err != nil || name != "preexisting" {
+		t.Fatal(name, err)
+	}
+	var n int
+	if err := s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&n); err != nil || n != 0 {
+		t.Fatal(n, err)
+	}
 }

@@ -20,27 +20,43 @@ cd Jumedia-server
 go run ./cmd/jumedia
 ```
 
-服务默认监听 `:8080`，数据保存在 `./data`。首次启动且数据库为空时会写入演示数据，演示账号为：
+服务默认监听 `:8080`，数据保存在 `./data`。每次启动幂等补齐分区、直播分区、默认设置和运行序列；不自动生成演示用户或内容。
 
-| 账号 | 密码 | 角色 |
-| --- | --- | --- |
-| `jumedia` | `admin123` | 管理员 |
-| `lumen` 等 | `demo123` | 普通用户 |
-
-**部署到公网前请修改这些密码**，或设置 `JUMEDIA_SEED=false` 从空库开始。
+首次启动可通过环境变量创建管理员（密码至少 6 位，最多 72 字节）：
 
 ```sh
-curl http://127.0.0.1:8080/x/jumedia/site
-curl -c cookies.txt -d 'username=jumedia&password=admin123' \
-  http://127.0.0.1:8080/x/passport-login/web/login
-curl -b cookies.txt http://127.0.0.1:8080/x/web-interface/nav
+JUMEDIA_ADMIN_USERNAME=owner JUMEDIA_ADMIN_PASSWORD='<管理员密码>' go run ./cmd/jumedia
 ```
 
-清空业务数据并重新写入演示数据（在一个事务内完成，已上传的文件保留）：
+已有管理员时忽略这两个引导变量，不改账号或密码。没有管理员且两者都未设置时只记录 WARN，服务继续启动；只设置其中一个或新建密码不合要求时启动报错。创建、提升同名用户或重设管理员密码：
+
+```sh
+go run ./cmd/jumedia admin owner '<新密码>'
+```
+
+演示内容通过网页端 `scripts/import-emby.mjs` 生成的 `jumedia-demo` v1 JSON 数据包导入。仅初始状态（基础数据和管理员账号）允许导入：
+
+```sh
+go run ./cmd/jumedia demo import ./jumedia-demo.json
+```
+
+也可在后台「站点设置」上传，接口为 `POST /x/admin/demo/import`，multipart 字段 `file`，需要管理员会话和 `csrf`。无效格式/版本/空目录返回 `-400`；已有业务内容返回 `-400 请先重置为初始状态再导入演示数据`。登录会话、扫码状态及操作日志不阻挡首次导入。内容、演示连接和直播缓存记录在同一事务写入。演示用户均为普通账号、密码 `demo123`，用户名为 `demo_<mid>_<原名>`（遇到同名追加下划线），不创建演示管理员，不覆盖站点设置。
+
+数据包格式：
+
+```json
+{"format":"jumedia-demo","version":1,"generatedAt":1793280407,"emby":{"url":"https://emby.example.test","username":"demo","password":""},"catalog":{"series":[],"movies":[]}}
+```
+
+上例仅展示结构，导入时 catalog 必须有可用条目。密码可省略；服务端以 `datasource.key`（或 `JUMEDIA_DATASOURCE_KEY`）的 AES-GCM 方式加密保存在设置中，不从接口回显。演示媒体代理、旧媒体迁移和演示直播转码均使用这份持久化连接，未导入时没有演示媒体。只有演示 `emby:` 媒体生成演示弹幕，上传与数据源导入视频不会生成。
+
+重置为初始状态（单个事务，保留所有管理员账号和直播聊天签名密钥）：
 
 ```sh
 go run ./cmd/jumedia reset
 ```
+
+后台 `/x/admin/settings/save` 的 `reset=true` 行为相同：删除业务内容、数据源、演示连接和缓存记录，清理缓存文件，重新补齐基础数据，不写演示内容。管理员需重新登录；上传目录保留。命令行重置后若没有管理员，则按引导环境变量创建。
 
 进程收到 SIGINT / SIGTERM 时停止接受新请求，最多等待 10 秒处理在途请求后退出。
 
@@ -58,16 +74,13 @@ go run ./cmd/jumedia reset
 | `JUMEDIA_DATA_DIR` | `data` | 数据目录：上传文件、图片缓存、直播转码缓存、数据源密钥 |
 | `JUMEDIA_WEB_DIR` | 空 | 已构建的网页端目录（`Jumedia-web/dist`）；设置后由本服务直接提供网页，未命中的路径回退到 `index.html` |
 | `JUMEDIA_STATIC_DIR` | `../Jumedia-web/public` | 演示资源目录，`/mock/*` 从其中的 `mock/` 子目录读取 |
-| `JUMEDIA_PUBLIC_ORIGIN` | 空 | 对外访问地址，例如 `https://media.example.com`；为空时按 `X-Forwarded-Proto` / `X-Forwarded-Host` 或请求 Host 推导 |
-| `JUMEDIA_SEED` | `true` | 数据库为空时是否写入演示数据 |
+| `JUMEDIA_PUBLIC_ORIGIN` | 空 | 对外访问地址，例如 `https://media.example.test`；为空时按 `X-Forwarded-Proto` / `X-Forwarded-Host` 或请求 Host 推导 |
+| `JUMEDIA_ADMIN_USERNAME` | 空 | 无管理员时的引导用户名 |
+| `JUMEDIA_ADMIN_PASSWORD` | 空 | 无管理员时的引导密码，至少 6 位 |
 | `JUMEDIA_DATASOURCE_KEY` | 空 | base64 编码的 32 字节密钥，用于加密数据源密码；为空时首次启动生成 `${JUMEDIA_DATA_DIR}/datasource.key` |
 | `JUMEDIA_FFMPEG` | `ffmpeg` | ffmpeg 路径或命令名 |
 | `JUMEDIA_FFPROBE` | `ffprobe` | ffprobe 路径或命令名 |
 | `JUMEDIA_FFMPEG_VIDEO_ENCODER` | `libx264` | 直播转码的视频编码器：`libx264`、`h264_videotoolbox`、`h264_nvenc`、`h264_qsv` |
-| `JUMEDIA_EMBY_URL` | 空 | 演示媒体所在的 Emby 地址（自动补 `/emby`） |
-| `JUMEDIA_EMBY_USERNAME` | 空 | 演示媒体的 Emby 用户名 |
-| `JUMEDIA_EMBY_PASSWORD` | 空 | 演示媒体的 Emby 密码 |
-| `JUMEDIA_EMBY_CATALOG` | `${JUMEDIA_STATIC_DIR}/mock/emby/catalog.json` | 演示媒体目录，由网页端的 `scripts/import-emby.mjs` 生成 |
 
 相对路径以服务的运行目录为基准。
 
@@ -80,7 +93,7 @@ go run ./cmd/jumedia reset
 - **站点**：站点名称、公告、注册开关、稿件是否需要审核、官方账号。
 - **数据源**：个人数据源开关、是否允许访问内网、同步间隔、限速与并发。
 - **缓存**：图片缓存开关、目录与容量上限；直播转码缓存目录与转码分辨率。
-- **重置演示数据**：与命令行 `reset` 相同。
+- **重置为初始状态**：与命令行 `reset` 相同。
 
 ## 部署
 
@@ -117,7 +130,7 @@ JUMEDIA_WEB_DIR=../Jumedia-web/dist go run ./cmd/jumedia
 
 ### 反向代理与 HTTPS
 
-服务本身只监听 HTTP。对外提供服务时，请在前面部署 HTTPS 反向代理，并设置 `JUMEDIA_PUBLIC_ORIGIN`（或后台的公开地址），非标准端口需要写明，例如 `https://media.example.com:8443`。
+服务本身只监听 HTTP。对外提供服务时，请在前面部署 HTTPS 反向代理，并设置 `JUMEDIA_PUBLIC_ORIGIN`（或后台的公开地址），非标准端口需要写明，例如 `https://media.example.test:8443`。
 
 **电视客户端必须通过 HTTPS 访问**：它固定用 `wss://` 连接直播聊天，不会退回 `ws://`。代理需要为 `/sub` 转发 WebSocket 升级，例如 Nginx：
 
@@ -256,12 +269,12 @@ API_PROXY=http://127.0.0.1:8080 VITE_MOCK=0 npm run dev
 ## 开发
 
 ```text
-cmd/jumedia/        程序入口：启动、reset、优雅退出
+cmd/jumedia/        程序入口：启动、admin、demo import、reset、优雅退出
 internal/api/       请求管线与各业务路由
 internal/config/    环境变量
 internal/db/        数据库连接、占位符改写、事务
 internal/store/     数据模型、查询与迁移
-internal/seed/      演示数据
+internal/seed/      基础初始化、管理员引导与演示包生成
 internal/render/    响应渲染
 internal/emby/      Emby 客户端与媒体代理
 internal/dm/        protobuf 弹幕
@@ -288,10 +301,12 @@ JUMEDIA_TEST_PG_DSN='postgres://jumedia:jumedia-test@127.0.0.1:55432/jumedia_tes
   go test -p 1 ./...
 ```
 
-常规测试使用 `httptest` 模拟的 Emby，不访问网络。连接真实 Emby 的冒烟测试默认跳过，需显式启用并配置 `JUMEDIA_EMBY_*`：
+常规媒体测试使用本地 `httptest` Emby，无需外部网络（需要允许监听本地端口）。真实 Emby 冒烟测试要求显式设置 `JUMEDIA_TEST_EMBY_URL`、`JUMEDIA_TEST_EMBY_USERNAME`、`JUMEDIA_TEST_EMBY_PASSWORD`（允许显式为空）和 `JUMEDIA_TEST_EMBY_PACKAGE`；缺少必需项就跳过，无默认地址：
 
 ```sh
-JUMEDIA_TEST_EMBY=1 go test ./internal/emby -run '^TestRealEmbySmoke$' -v
+JUMEDIA_TEST_EMBY_URL=https://emby.example.test JUMEDIA_TEST_EMBY_USERNAME=demo \
+JUMEDIA_TEST_EMBY_PASSWORD='<密码>' JUMEDIA_TEST_EMBY_PACKAGE=./jumedia-demo.json \
+  go test ./internal/emby -run '^TestRealEmbySmoke$' -v
 ```
 
 ### 约定

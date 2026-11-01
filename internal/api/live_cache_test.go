@@ -217,7 +217,7 @@ func TestLiveCacheSettingsDeletionAndGC(t *testing.T) {
 		cacheReady(t, s, y)
 		assertCode(t, sourcePost(t, s, u, "/x/admin/settings/save", url.Values{"reset": {"true"}}), 0)
 		xs, e := liveCacheList(context.Background(), s.Store.DB)
-		if e != nil || len(xs) != 2 {
+		if e != nil || len(xs) != 0 {
 			t.Fatal(xs, e)
 		}
 		if _, e := os.Stat(y.Dir); !os.IsNotExist(e) {

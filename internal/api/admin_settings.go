@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"jumedia-server/internal/db"
-	"jumedia-server/internal/emby"
 	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 )
@@ -209,33 +208,16 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 			if _, err = tx.ExecContext(c.Context(), "DELETE FROM live_caches"); err != nil {
 				return err
 			}
-			catalog, err := emby.LoadCatalog(s.Config.EmbyCatalog)
-			if err != nil {
+			if err := seed.ResetTx(c.Context(), tx); err != nil {
 				return err
 			}
-			// Keep the server signing identity across a business-data reset.
-			var chatSecret string
-			err = tx.QueryRowContext(c.Context(), "SELECT value FROM settings WHERE key=?", liveChatSecretKey).Scan(&chatSecret)
-			if err != nil && !adminMissing(err) {
-				return err
-			}
-			if err := seed.ResetTx(c.Context(), tx, catalog); err != nil {
-				return err
-			}
-			if chatSecret != "" {
-				if _, err := tx.ExecContext(c.Context(), "INSERT INTO settings(key,value) VALUES (?,?)", liveChatSecretKey, chatSecret); err != nil {
-					return err
-				}
-			}
-			// Reset may remove a custom administrator; preserve the nullable actor.
-			var mid int64
-			err = tx.QueryRowContext(c.Context(), "SELECT mid FROM users WHERE mid=?", ActorID(c)).Scan(&mid)
-			if err != nil && !adminMissing(err) {
-				return err
-			}
-			return s.LogTx(c.Context(), tx, mid, "重置站点数据", "")
+			// Administrator accounts survive the reset, so the actor stays valid.
+			return s.LogTx(c.Context(), tx, ActorID(c), "重置站点数据", "")
 		})
 		if err != nil {
+			return nil, err
+		}
+		if err = s.InitDemoMedia(c.Context()); err != nil {
 			return nil, err
 		}
 		s.applyServerSettings(nil)
@@ -246,11 +228,6 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 			if err = liveCacheRemove(&x); err != nil {
 				return nil, err
 			}
-		}
-		// A reset replaces rooms while the worker is already running. Queue
-		// the newly seeded video sources before releasing the cache lock.
-		if err = s.recoverLiveCaches(c.Context()); err != nil {
-			return nil, err
 		}
 		return nil, nil
 	}
@@ -306,7 +283,7 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 		}
 		for k, v := range c.P {
 			cur, ok := settings[k]
-			if !ok || strings.HasPrefix(k, "serverEmby") || k == liveChatSecretKey || k == "csrf" || k == "biliCSRF" || k == "serviceMtime" {
+			if !ok || (strings.HasPrefix(k, "serverEmby") || strings.HasPrefix(k, "_demo_")) || k == liveChatSecretKey || k == "csrf" || k == "biliCSRF" || k == "serviceMtime" {
 				continue
 			}
 			var value any = v

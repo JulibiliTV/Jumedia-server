@@ -1,6 +1,7 @@
 package seed_test
 
 import (
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"strings"
 	"testing"
 
@@ -23,7 +24,7 @@ func TestServerSeedAndReset(t *testing.T) {
 		if err := s.SetSetting(ctx, "serverPublicOrigin", "https://keep.test"); err != nil {
 			t.Fatal(err)
 		}
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		defaults["serverPublicOrigin"] = "https://keep.test"
@@ -45,14 +46,14 @@ func TestServerSeedAndReset(t *testing.T) {
 			}
 		}
 		check()
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		check()
 		if err := s.SetSetting(ctx, "serverEmbyPassword", "legacy"); err != nil {
 			t.Fatal(err)
 		}
-		if err := seed.Reset(ctx, s, testdata.Catalog()); err != nil {
+		if err := seed.Reset(ctx, s); err != nil {
 			t.Fatal(err)
 		}
 		defaults["serverPublicOrigin"] = ""

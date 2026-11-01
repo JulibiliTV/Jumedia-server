@@ -157,20 +157,17 @@ func TestDemoLiveReadyCacheReuse(t *testing.T) {
 	})
 }
 
-func TestDemoLiveAdminResetQueuesCaches(t *testing.T) {
+func TestDemoLiveAdminResetClearsCaches(t *testing.T) {
 	testServers(t, func(t *testing.T, s *Server) {
 		u := login(t, s, "jumedia", "admin123")
 		assertCode(t, post(t, s, "/x/admin/settings/save", url.Values{"reset": {"true"}}), -101)
 		assertCode(t, sourcePost(t, s, u, "/x/admin/settings/save", url.Values{"reset": {"true"}}), 0)
 		caches, e := liveCacheList(t.Context(), s.Store.DB)
-		if e != nil || len(caches) != 2 {
-			t.Fatal("reset must queue demo caches", caches, e)
+		if e != nil || len(caches) != 0 {
+			t.Fatal("reset must remove demo caches", caches, e)
 		}
-		for _, id := range []int64{21000, 21018} {
-			r := liveRoom(t, s, id)
-			if r.LiveStatus != 0 || !r.PendingStart || r.Source.Cache == "" {
-				t.Fatal(r)
-			}
+		if adminTestCount(t, s, "SELECT COUNT(*) FROM rooms") != 0 {
+			t.Fatal("reset recreated rooms")
 		}
 	})
 }

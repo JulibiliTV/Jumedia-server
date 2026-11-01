@@ -141,7 +141,7 @@ func TestServerStartupPermissionsAndRedaction(t *testing.T) {
 	t.Setenv("JUMEDIA_FFPROBE", "")
 	t.Setenv("JUMEDIA_FFMPEG_VIDEO_ENCODER", "")
 	base := newTestServer(t)
-	cfg := config.Config{Addr: ":18081", DBDriver: "postgres", DBDSN: "postgres://owner:dsn-secret@db.test/jumedia?password=query-secret", DataDir: "/data", WebDir: "/web", StaticDir: "/static", Seed: true, PublicOrigin: "https://boot.test", EmbyURL: "https://emby.test", EmbyUsername: "boot-user", EmbyPassword: "boot-secret"}
+	cfg := config.Config{Addr: ":18081", DBDriver: "postgres", DBDSN: "postgres://owner:dsn-secret@db.test/jumedia?password=query-secret", DataDir: "/data", WebDir: "/web", StaticDir: "/static", PublicOrigin: "https://boot.test"}
 	s := New(base.Store, cfg)
 	t.Cleanup(s.CloseDataSources)
 	assertCode(t, get(t, s, "/x/admin/server"), -101)
@@ -156,12 +156,12 @@ func TestServerStartupPermissionsAndRedaction(t *testing.T) {
 		t.Fatal(startup)
 	}
 	boot := v["boot"].([]any)
-	for i, key := range []string{"JUMEDIA_ADDR", "JUMEDIA_DB_DRIVER", "JUMEDIA_DB_DSN", "JUMEDIA_DATA_DIR", "JUMEDIA_WEB_DIR", "JUMEDIA_STATIC_DIR", "JUMEDIA_SEED", "JUMEDIA_DATASOURCE_KEY"} {
+	for i, key := range []string{"JUMEDIA_ADDR", "JUMEDIA_DB_DRIVER", "JUMEDIA_DB_DSN", "JUMEDIA_DATA_DIR", "JUMEDIA_WEB_DIR", "JUMEDIA_STATIC_DIR", "JUMEDIA_DATASOURCE_KEY"} {
 		if boot[i].(map[string]any)["key"] != key {
 			t.Fatal(boot)
 		}
 	}
-	if boot[6].(map[string]any)["value"] != "是" || boot[7].(map[string]any)["value"] != "已设置" {
+	if boot[6].(map[string]any)["value"] != "已设置" {
 		t.Fatal(boot)
 	}
 	responses := w.Body.String()

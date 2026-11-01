@@ -7,7 +7,7 @@ import (
 )
 
 func Catalog() emby.Catalog {
-	c := emby.Catalog{Server: "https://emby.example.invalid/emby", Username: "fixture"}
+	c := emby.Catalog{}
 	names := []string{"星海旅团", "放学后的咖啡馆", "剑与月光的协奏曲", "电波少女侦探社", "山海异闻录", "机甲纪元：觉醒", "小城四季", "周末音乐会"}
 	styles := [][]string{{"科幻", "冒险"}, {"日常", "治愈"}, {"奇幻", "战斗"}, {"悬疑", "校园"}, {"奇幻", "国风"}, {"科幻", "机战"}, {"家庭", "生活"}, {"音乐", "真人秀"}}
 	images := func(id string) emby.Images {

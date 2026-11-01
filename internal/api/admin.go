@@ -19,7 +19,7 @@ func (s *Server) registerAdmin() {
 		"regions": s.adminRegions, "region/save": s.adminRegionSave, "region/sort": s.adminRegionSort, "region/delete": s.adminRegionDelete,
 		"live/areas": s.adminAreas, "live/area/save": s.adminAreaSave,
 		"banners": s.adminBanners, "banner/save": s.adminBannerSave, "banner/delete": s.adminBannerDelete,
-		"server": s.adminServer, "settings": s.adminSettings, "settings/save": s.adminSettingsSave, "logs": s.adminLogs,
+		"demo/import": s.adminDemoImport, "server": s.adminServer, "settings": s.adminSettings, "settings/save": s.adminSettingsSave, "logs": s.adminLogs,
 	}
 	for path, handler := range routes {
 		s.handle("/x/admin/"+path, func(c *Ctx) (any, error) {

@@ -213,7 +213,7 @@ func TestLiveCacheDeleteRunningAndReset(t *testing.T) {
 		assertCode(t, sourcePost(t, s, u, "/x/admin/settings/save", url.Values{"reset": {"true"}}), 0)
 		time.Sleep(30 * time.Millisecond)
 		xs, e := liveCacheList(context.Background(), s.Store.DB)
-		if e != nil || len(xs) != 2 {
+		if e != nil || len(xs) != 0 {
 			t.Fatal(xs, e)
 		}
 		if _, e = os.Stat(x.Dir + ".tmp"); !os.IsNotExist(e) {

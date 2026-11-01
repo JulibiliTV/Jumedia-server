@@ -2,6 +2,7 @@ package emby
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -75,25 +76,24 @@ func TestConcurrentSessionAndLogin(t *testing.T) {
 
 // This is the only test allowed to contact an actual Emby server.
 func TestRealEmbySmoke(t *testing.T) {
-	if os.Getenv("JUMEDIA_TEST_EMBY") != "1" {
-		t.Skip("set JUMEDIA_TEST_EMBY=1 to contact the development Emby server")
+	base := os.Getenv("JUMEDIA_TEST_EMBY_URL")
+	user := os.Getenv("JUMEDIA_TEST_EMBY_USERNAME")
+	password, passwordSet := os.LookupEnv("JUMEDIA_TEST_EMBY_PASSWORD")
+	path := os.Getenv("JUMEDIA_TEST_EMBY_PACKAGE")
+	if base == "" || user == "" || !passwordSet || path == "" {
+		t.Skip("set JUMEDIA_TEST_EMBY_URL/USERNAME/PASSWORD/PACKAGE for opt-in smoke test")
 	}
-	base := os.Getenv("JUMEDIA_EMBY_URL")
-	if base == "" {
-		base = "https://emby.example.test"
-	}
-	user := os.Getenv("JUMEDIA_EMBY_USERNAME")
-	if user == "" {
-		user = "test"
-	}
-	path := os.Getenv("JUMEDIA_EMBY_CATALOG")
-	if path == "" {
-		path = "../../../Jumedia-web/public/mock/emby/catalog.json"
-	}
-	catalog, err := LoadCatalog(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var pack struct {
+		Catalog Catalog `json:"catalog"`
+	}
+	if err = json.Unmarshal(raw, &pack); err != nil {
+		t.Fatal(err)
+	}
+	catalog := pack.Catalog
 	item, source := "", ""
 	if len(catalog.Movies) > 0 {
 		item, source = catalog.Movies[0].ID, catalog.Movies[0].SourceID
@@ -110,7 +110,7 @@ func TestRealEmbySmoke(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	client := New(base, user, os.Getenv("JUMEDIA_EMBY_PASSWORD"))
+	client := New(base, user, password)
 	res, err := client.Stream(ctx, item, source, http.Header{"Range": {"bytes=0-1023"}})
 	if err != nil {
 		t.Fatal(err)

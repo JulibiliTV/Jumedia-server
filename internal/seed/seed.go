@@ -23,58 +23,21 @@ func rng(seed uint32) func() float64 {
 	return func() float64 { seed = seed*1664525 + 1013904223; return float64(seed) / 4294967296 }
 }
 
-// Seed only populates an empty user catalogue; repeated starts preserve all data.
-func Seed(ctx context.Context, s *store.Store, catalogs ...emby.Catalog) error {
-	return populate(ctx, s, false, catalogArg(catalogs))
+// Seed only ensures base rows. Demo generation requires an explicit import.
+func Seed(ctx context.Context, s *store.Store) error {
+	return s.DB.WithTx(ctx, func(tx *db.Tx) error { return BaseTx(ctx, tx) })
+}
+func Reset(ctx context.Context, s *store.Store) error {
+	return s.DB.WithTx(ctx, func(tx *db.Tx) error { return ResetTx(ctx, tx) })
 }
 
-// Reset clears and repopulates atomically, including resetting the shared ID sequence.
-func Reset(ctx context.Context, s *store.Store, catalogs ...emby.Catalog) error {
-	return populate(ctx, s, true, catalogArg(catalogs))
-}
-
-// ResetTx resets and seeds within the caller's transaction, allowing its audit
-// record to share the commit. It does not open another database connection.
-func ResetTx(ctx context.Context, tx *db.Tx, catalogs ...emby.Catalog) error {
-	return populateTx(ctx, tx, true, catalogArg(catalogs))
-}
-func catalogArg(catalogs []emby.Catalog) emby.Catalog {
-	if len(catalogs) > 0 {
-		return catalogs[0]
-	}
-	return emby.Catalog{}
-}
-func populate(ctx context.Context, s *store.Store, reset bool, catalog emby.Catalog) error {
-	return s.DB.WithTx(ctx, func(tx *db.Tx) error { return populateTx(ctx, tx, reset, catalog) })
-}
-func populateTx(ctx context.Context, tx *db.Tx, reset bool, catalog emby.Catalog) error {
-	// Lock the sequence first to serialize independent server starts as well.
-	if _, err := tx.ExecContext(ctx, "UPDATE ids SET value=value WHERE name=?", "global"); err != nil {
-		return err
-	}
-	var n int
-	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&n); err != nil {
-		return err
-	}
-	if !reset && n > 0 {
-		return nil
-	}
-	if reset {
-		if err := store.Clear(ctx, tx); err != nil {
-			return err
-		}
-	}
-	return insert(ctx, tx, time.Now().Unix(), catalog)
-}
-
-func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) error {
+// GenerateDemoTx writes demo content inside an existing transaction. Production
+// callers must use ImportTx, which checks initial state and reserves an ID range.
+// Offline contract fixtures also use this generator with their fixed ID origin.
+func GenerateDemoTx(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog, offset int64) error {
 	r := rng(20261029)
-	seq := int64(1000)
+	seq := offset + int64(1000)
 	id := func() int64 { seq++; return seq }
-	adminHash, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
 	demoHash, err := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -84,26 +47,33 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 	for i, p := range people {
 		pw := demoHash
 		role := "user"
-		if i == 0 {
-			pw = adminHash
-			role = "admin"
+
+		u := store.User{MID: offset + int64(i+1), Username: p[0], Password: string(pw), Uname: p[1], Face: fmt.Sprintf("/mock/avatars/u%d.png", i+1), Sign: p[2], Sex: []string{"男", "女", "保密"}[i%3], Birthday: "1998-06-12", Email: p[0] + "@jumedia.local", Level: 6 - i%4, Exp: 12000 - i*700, Coins: float64(120 + i*13), Role: role, Ctime: t0 - int64(86400*(400-i*20)), TopPhoto: pickString(backdrops, int64(i)), VIP: store.BoolInt(i%4 == 0)}
+		if offset > 0 {
+			u.Username = fmt.Sprintf("demo_%d_%s", u.MID, u.Username)
+			u.Email = u.Username + "@jumedia.local"
 		}
-		u := store.User{MID: int64(i + 1), Username: p[0], Password: string(pw), Uname: p[1], Face: fmt.Sprintf("/mock/avatars/u%d.png", i+1), Sign: p[2], Sex: []string{"男", "女", "保密"}[i%3], Birthday: "1998-06-12", Email: p[0] + "@jumedia.local", Level: 6 - i%4, Exp: 12000 - i*700, Coins: float64(120 + i*13), Role: role, Ctime: t0 - int64(86400*(400-i*20)), TopPhoto: pickString(backdrops, int64(i)), VIP: store.BoolInt(i%4 == 0)}
+		for {
+			var n int
+			if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE username=?", u.Username).Scan(&n); err != nil {
+				return err
+			}
+			if n == 0 {
+				break
+			}
+			u.Username += "_"
+			u.Email = u.Username + "@jumedia.local"
+		}
 		if err = store.InsertUser(ctx, tx, &u); err != nil {
 			return err
 		}
 		users = append(users, u)
 	}
-	for _, v := range regions {
-		if err = store.InsertRegion(ctx, tx, &v); err != nil {
-			return err
-		}
-	}
-	cid := int64(50000)
+	cid := offset + int64(50000)
 	archives := []store.Archive{}
 	clips := clipsFrom(catalog)
 	for i, clip := range clips[:min(40, len(clips))] {
-		aid := int64(100100 + i*7)
+		aid := offset + int64(100100+i*7)
 		view := int64(math.Floor(2000 + r()*r()*1800000))
 		pub := t0 - int64(r()*86400*60) - int64(i*3600)
 		pages := []store.Page{}
@@ -116,7 +86,7 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 			pages = append(pages, p)
 			total += p.Duration
 		}
-		a := store.Archive{AID: aid, BVID: store.AV2BV(aid), MID: int64(i%11 + 2), Title: clip.Title, Desc: clip.Desc, TID: clip.TID, Tag: clip.Tag, Pic: clip.Pic, Ctime: pub - 600, Pubdate: pub, Copyright: 2, Source: "转载自 Jumedia 演示媒体库", Pages: pages, Chapters: []store.Chapter{}, Subtitles: []store.Subtitle{}, Stat: store.ArchiveStat{View: view, Danmaku: int64(float64(view) * .004), Favorite: int64(float64(view) * .02), Coin: int64(float64(view) * .01), Share: int64(float64(view) * .002), Like: int64(float64(view) * .05)}}
+		a := store.Archive{AID: aid, BVID: store.AV2BV(aid), MID: offset + int64(i%11+2), Title: clip.Title, Desc: clip.Desc, TID: clip.TID, Tag: clip.Tag, Pic: clip.Pic, Ctime: pub - 600, Pubdate: pub, Copyright: 2, Source: "转载自 Jumedia 演示媒体库", Pages: pages, Chapters: []store.Chapter{}, Subtitles: []store.Subtitle{}, Stat: store.ArchiveStat{View: view, Danmaku: int64(float64(view) * .004), Favorite: int64(float64(view) * .02), Coin: int64(float64(view) * .01), Share: int64(float64(view) * .002), Like: int64(float64(view) * .05)}}
 		if i%4 == 0 && total > 120 {
 			a.Chapters = []store.Chapter{{From: 0, To: math.Floor(float64(total) * .1), Content: "开场"}, {From: math.Floor(float64(total) * .1), To: math.Floor(float64(total) * .9), Content: "正片"}, {From: math.Floor(float64(total) * .9), To: float64(total), Content: "片尾"}}
 		}
@@ -128,14 +98,14 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 			clip = clips[40]
 		}
 		a := archives[0]
-		a.AID = 100999
+		a.AID = offset + 100999
 		a.BVID = store.AV2BV(a.AID)
 		a.Title = prefix("待审核："+clip.Title, 80)
 		a.Desc = clip.Desc
 		a.TID = clip.TID
 		a.Pic = clip.Pic
 		a.State = -1
-		a.MID = 3
+		a.MID = offset + 3
 		a.Pubdate = t0 - 1200
 		a.Ctime = t0 - 1800
 		a.Stat = store.ArchiveStat{}
@@ -192,6 +162,17 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 		}
 	}
 	seasons := catalogSeasons(catalog, t0, r, &cid)
+	for i := range seasons {
+		x := &seasons[i]
+		x.SeasonID += offset
+		x.MediaID += offset
+		for j := range x.Episodes {
+			e := &x.Episodes[j]
+			e.EpID += offset
+			e.AID += offset
+			e.SeasonID += offset
+		}
+	}
 	for _, season := range seasons {
 		if err = store.InsertSeason(ctx, tx, &season); err != nil {
 			return err
@@ -202,17 +183,11 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 			}
 		}
 	}
-	for _, a := range liveAreas {
-		if err = store.InsertLiveArea(ctx, tx, &a); err != nil {
-			return err
-		}
-		for _, c := range a.Children {
-			if err = store.InsertLiveAreaChild(ctx, tx, &c); err != nil {
-				return err
-			}
-		}
-	}
 	rooms := catalogRooms(catalog, t0, r)
+	for i := range rooms {
+		rooms[i].RoomID += offset
+		rooms[i].UID += offset
+	}
 	for _, v := range rooms {
 		if err = store.InsertLiveRoom(ctx, tx, &v); err != nil {
 			return err
@@ -222,7 +197,7 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 		n := 3 + int(r()*5)
 		for k := 0; k < n; k++ {
 			rpid := id()
-			v := store.Reply{RPID: rpid, OID: a.AID, MID: int64(r()*float64(len(users))) + 1, Message: comments[int(r()*float64(len(comments)))], Ctime: a.Pubdate + int64(r()*86400*3)}
+			v := store.Reply{RPID: rpid, OID: a.AID, MID: offset + int64(r()*float64(len(users))) + 1, Message: comments[int(r()*float64(len(comments)))], Ctime: a.Pubdate + int64(r()*86400*3)}
 			if err = store.InsertReply(ctx, tx, &v); err != nil {
 				return err
 			}
@@ -235,7 +210,7 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 			}
 			if r() < .45 {
 				for j := 0; j < 1+int(r()*3); j++ {
-					v := store.Reply{RPID: id(), OID: a.AID, MID: int64(r()*float64(len(users))) + 1, Root: rpid, Parent: rpid, Message: []string{"同意！", "哈哈哈哈确实", "+1", "我也想知道", "感谢解答"}[int(r()*5)], Ctime: a.Pubdate + 86400*4 + int64(j*60)}
+					v := store.Reply{RPID: id(), OID: a.AID, MID: offset + int64(r()*float64(len(users))) + 1, Root: rpid, Parent: rpid, Message: []string{"同意！", "哈哈哈哈确实", "+1", "我也想知道", "感谢解答"}[int(r()*5)], Ctime: a.Pubdate + 86400*4 + int64(j*60)}
 					if err = store.InsertReply(ctx, tx, &v); err != nil {
 						return err
 					}
@@ -249,7 +224,7 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 	}
 	for _, room := range rooms {
 		for k := 0; k < 18; k++ {
-			v := store.LiveMessage{ID: id(), RoomID: room.RoomID, UID: int64(r()*float64(len(users))) + 1, Text: LiveChatter[int(r()*float64(len(LiveChatter)))], TS: t0 - int64((18-k)*20)}
+			v := store.LiveMessage{ID: id(), RoomID: room.RoomID, UID: offset + int64(r()*float64(len(users))) + 1, Text: LiveChatter[int(r()*float64(len(LiveChatter)))], TS: t0 - int64((18-k)*20)}
 			if err = store.InsertLiveMessage(ctx, tx, &v); err != nil {
 				return err
 			}
@@ -257,17 +232,17 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 	}
 	price := 30.0
 	if len(rooms) > 0 {
-		if err = store.InsertLiveMessage(ctx, tx, &store.LiveMessage{ID: id(), RoomID: rooms[0].RoomID, UID: 4, Text: "这部太好看了，主播再放一遍！", TS: t0 - 60, Price: &price}); err != nil {
+		if err = store.InsertLiveMessage(ctx, tx, &store.LiveMessage{ID: id(), RoomID: rooms[0].RoomID, UID: offset + 4, Text: "这部太好看了，主播再放一遍！", TS: t0 - 60, Price: &price}); err != nil {
 			return err
 		}
 	}
 	for i, pair := range [][2]int64{{1, 2}, {1, 3}, {1, 4}, {1, 6}, {2, 1}, {3, 1}, {3, 2}, {4, 1}, {5, 1}, {6, 2}} {
-		if err = store.InsertRelation(ctx, tx, &store.Relation{MID: pair[0], FID: pair[1], Mtime: t0 - int64(i*3600)}); err != nil {
+		if err = store.InsertRelation(ctx, tx, &store.Relation{MID: offset + pair[0], FID: offset + pair[1], Mtime: t0 - int64(i*3600)}); err != nil {
 			return err
 		}
 	}
 	for _, u := range users {
-		f := store.FavFolder{ID: 9000 + u.MID*10, MID: u.MID, Title: "默认收藏夹", Ctime: u.Ctime}
+		f := store.FavFolder{ID: offset + 9000 + (u.MID-offset)*10, MID: u.MID, Title: "默认收藏夹", Ctime: u.Ctime}
 		if err = store.InsertFavFolder(ctx, tx, &f); err != nil {
 			return err
 		}
@@ -283,12 +258,12 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 			}
 		}
 	}
-	if err = store.InsertFavFolder(ctx, tx, &store.FavFolder{ID: 9011, MID: 1, Title: "周末追剧", Intro: "慢慢看", Ctime: t0 - 86400*40, Attr: 1}); err != nil {
+	if err = store.InsertFavFolder(ctx, tx, &store.FavFolder{ID: offset + 9011, MID: offset + 1, Title: "周末追剧", Intro: "慢慢看", Ctime: t0 - 86400*40, Attr: 1}); err != nil {
 		return err
 	}
 	for _, a := range archives {
 		if a.TID == 1001 {
-			if err = store.InsertFavItem(ctx, tx, &store.FavItem{FolderID: 9011, AID: a.AID, Mtime: t0 - 86400}); err != nil {
+			if err = store.InsertFavItem(ctx, tx, &store.FavItem{FolderID: offset + 9011, AID: a.AID, Mtime: t0 - 86400}); err != nil {
 				return err
 			}
 		}
@@ -298,12 +273,12 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 		if i == 0 {
 			progress = -1
 		}
-		if err = store.InsertHistory(ctx, tx, &store.History{MID: 1, AID: a.AID, CID: a.Pages[0].CID, ViewAt: t0 - int64(i*5400), Progress: progress}); err != nil {
+		if err = store.InsertHistory(ctx, tx, &store.History{MID: offset + 1, AID: a.AID, CID: a.Pages[0].CID, ViewAt: t0 - int64(i*5400), Progress: progress}); err != nil {
 			return err
 		}
 	}
 	for i, a := range archives[min(8, len(archives)):min(12, len(archives))] {
-		if err = store.InsertToView(ctx, tx, &store.ToView{MID: 1, AID: a.AID, AddAt: t0 - int64(i*7200)}); err != nil {
+		if err = store.InsertToView(ctx, tx, &store.ToView{MID: offset + 1, AID: a.AID, AddAt: t0 - int64(i*7200)}); err != nil {
 			return err
 		}
 	}
@@ -317,12 +292,12 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 		}
 	}
 	for i, season := range follows {
-		if err = store.InsertBangumiFollow(ctx, tx, &store.BangumiFollow{MID: 1, SeasonID: season.SeasonID, Status: 2 - i, Mtime: t0 - int64((i+1)*3600)}); err != nil {
+		if err = store.InsertBangumiFollow(ctx, tx, &store.BangumiFollow{MID: offset + 1, SeasonID: season.SeasonID, Status: 2 - i, Mtime: t0 - int64((i+1)*3600)}); err != nil {
 			return err
 		}
 	}
 	for i, a := range archives[:min(4, len(archives))] {
-		if err = store.InsertBanner(ctx, tx, &store.Banner{ID: int64(1 + i), Title: a.Title, Img: bannerImage(backdrops, i, a.Pic), URL: "/video/" + a.BVID, Position: "home", Sort: i}); err != nil {
+		if err = store.InsertBanner(ctx, tx, &store.Banner{ID: offset + int64(1+i), Title: a.Title, Img: bannerImage(backdrops, i, a.Pic), URL: "/video/" + a.BVID, Position: "home", Sort: i}); err != nil {
 			return err
 		}
 	}
@@ -338,33 +313,27 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 	}
 	for i, s := range bannerSeasons[:min(4, len(bannerSeasons))] {
 		sid := s.SeasonID
-		if err = store.InsertBanner(ctx, tx, &store.Banner{ID: int64(11 + i), Title: s.Title, Img: s.Horizontal, URL: fmt.Sprintf("/bangumi/play/ss%d", sid), Position: "anime", Sort: i, SeasonID: &sid}); err != nil {
+		if err = store.InsertBanner(ctx, tx, &store.Banner{ID: offset + int64(11+i), Title: s.Title, Img: s.Horizontal, URL: fmt.Sprintf("/bangumi/play/ss%d", sid), Position: "anime", Sort: i, SeasonID: &sid}); err != nil {
 			return err
 		}
 	}
-	settings := map[string]any{"siteName": "Jumedia", "allowRegister": true, "auditRequired": true, "maxUploadMB": 2048, "announcement": "欢迎体验 Jumedia 在线媒体平台。演示视频来自 Jumedia 媒体库。", "allowGuestPlay": true, "defaultQuality": 80, "userDataSources": true, "dataSourcePrivateNetwork": false, "dataSourceSyncHours": 6, "dataSourceSyncRate": 5, "dataSourceSyncConcurrency": 2, "officialMid": 1, "liveCacheDir": "", "liveTranscodeHeight": 1080, "imageCacheEnabled": true, "imageCacheDir": "", "imageCacheMaxMB": 1024}
-	for k, v := range settings {
-		if err = store.SetSetting(ctx, tx, k, v); err != nil {
-			return err
-		}
-	}
-	if err = store.InsertLog(ctx, tx, &store.Log{ID: 1, MID: 1, Action: "系统初始化", Target: "演示数据", Ctime: t0}); err != nil {
-		return err
+	if offset > 0 {
+		seq = max(seq, offset+30000000)
 	}
 	_, err = tx.ExecContext(ctx, "UPDATE ids SET value=? WHERE name=?", seq, "global")
 	if err != nil {
 		return err
 	}
-	if err := seedBPlan(ctx, tx, t0); err != nil {
+	if err := seedBPlan(ctx, tx, t0, offset); err != nil {
 		return err
 	}
-	if err := store.ExtendFanMedals(ctx, tx, t0); err != nil {
+	if err := demoFanMedals(ctx, tx, t0, offset); err != nil {
 		return err
 	}
 	if err := store.ExtendPublication(ctx, tx, time.Unix(t0, 0)); err != nil {
 		return err
 	}
-	if err := store.ExtendDemoLive(ctx, tx); err != nil {
+	if err := demoLive(ctx, tx, offset); err != nil {
 		return err
 	}
 	if err := seedServiceSettings(ctx, tx); err != nil {
@@ -376,12 +345,40 @@ func insert(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catalog) erro
 // SeedDanmaku generates a CID only once, transactionally, like db.ts.
 func SeedDanmaku(ctx context.Context, s *store.Store, cid int64, duration int) error {
 	return s.DB.WithTx(ctx, func(tx *db.Tx) error {
+		var n int
+		if err := tx.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM archive_pages WHERE cid=? AND media LIKE 'emby:%') + (SELECT COUNT(*) FROM episodes WHERE cid=? AND media LIKE 'emby:%')", cid, cid).Scan(&n); err != nil {
+			return err
+		}
+		if n == 0 {
+			return nil
+		}
+		rows, err := tx.QueryContext(ctx, "SELECT mid FROM users WHERE role=? ORDER BY mid", "user")
+		if err != nil {
+			return err
+		}
+		var mids []int64
+		for rows.Next() {
+			var mid int64
+			if err = rows.Scan(&mid); err != nil {
+				rows.Close()
+				return err
+			}
+			mids = append(mids, mid)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		if len(mids) == 0 {
+			return nil
+		}
 		result, err := tx.ExecContext(ctx, "INSERT INTO seeded_danmaku(cid) VALUES (?) ON CONFLICT(cid) DO NOTHING", cid)
 		if err != nil {
 			return err
 		}
-		n, err := result.RowsAffected()
-		if err != nil || n == 0 {
+		affected, err := result.RowsAffected()
+		if err != nil || affected == 0 {
 			return err
 		}
 		r := rng(hash(strconv.FormatInt(cid, 10)))
@@ -399,7 +396,7 @@ func SeedDanmaku(ctx context.Context, s *store.Store, cid int64, duration int) e
 			if err != nil {
 				return err
 			}
-			d := store.Danmaku{ID: id, CID: cid, Progress: int(r() * float64(span) * 1000), Mode: mode, Fontsize: 25, Color: colors[int(r()*float64(len(colors)))], MID: int64(r()*12) + 1, Content: LiveChatter[int(r()*float64(len(LiveChatter)))], Ctime: time.Now().Unix() - 86400, Weight: 1 + int(r()*10)}
+			d := store.Danmaku{ID: id, CID: cid, Progress: int(r() * float64(span) * 1000), Mode: mode, Fontsize: 25, Color: colors[int(r()*float64(len(colors)))], MID: mids[int(r()*float64(len(mids)))], Content: LiveChatter[int(r()*float64(len(LiveChatter)))], Ctime: time.Now().Unix() - 86400, Weight: 1 + int(r()*10)}
 			if err = store.InsertDanmaku(ctx, tx, &d); err != nil {
 				return err
 			}

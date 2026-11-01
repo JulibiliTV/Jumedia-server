@@ -3,13 +3,13 @@ package render_test
 import (
 	"context"
 	"encoding/json"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"reflect"
 	"testing"
 
 	"jumedia-server/internal/emby/testdata"
 	"jumedia-server/internal/render"
 	contract "jumedia-server/internal/render/testdata"
-	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 	"jumedia-server/internal/testutil"
 )
@@ -36,7 +36,7 @@ func normalize(v any, base float64, key string) any {
 func TestMockRenderFixtures(t *testing.T) {
 	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
 		ctx := context.Background()
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		var err error

@@ -9,12 +9,12 @@ import (
 	"jumedia-server/internal/store"
 )
 
-func seedBPlan(ctx context.Context, tx *db.Tx, t0 int64) error {
+func seedBPlan(ctx context.Context, tx *db.Tx, t0, offset int64) error {
 	if err := store.ExtendBPlan(ctx, tx); err != nil {
 		return err
 	}
 	for mid, notice := range map[int64]string{1: "欢迎来到 Jumedia！每周五晚 8 点官方放映厅不见不散。", 2: "新一期光影实验周三更新，评论区留下你想看的题目。"} {
-		if _, err := tx.ExecContext(ctx, "UPDATE users SET notice=? WHERE mid=?", notice, mid); err != nil {
+		if _, err := tx.ExecContext(ctx, "UPDATE users SET notice=? WHERE mid=?", notice, offset+mid); err != nil {
 			return err
 		}
 	}
@@ -27,7 +27,7 @@ func seedBPlan(ctx context.Context, tx *db.Tx, t0 int64) error {
 		title string
 	}
 	rooms := []room{}
-	rows, err := tx.QueryContext(ctx, "SELECT uid,title FROM rooms WHERE uid>1 ORDER BY room_id LIMIT 6")
+	rows, err := tx.QueryContext(ctx, "SELECT uid,title FROM rooms WHERE uid>? ORDER BY room_id LIMIT 6", offset+1)
 	if err != nil {
 		return err
 	}
@@ -50,14 +50,14 @@ func seedBPlan(ctx context.Context, tx *db.Tx, t0 int64) error {
 			if j == 1 {
 				stime = day(5+i%3, 19)
 			}
-			if _, err = tx.ExecContext(ctx, "INSERT INTO reservations(sid,mid,title,stime,ctime) VALUES (?,?,?,?,?)", 5000+i*2+j, r.uid, title, stime, t0); err != nil {
+			if _, err = tx.ExecContext(ctx, "INSERT INTO reservations(sid,mid,title,stime,ctime) VALUES (?,?,?,?,?)", offset+int64(5000+i*2+j), r.uid, title, stime, t0); err != nil {
 				return err
 			}
 		}
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO reservations(sid,mid,title,stime,ctime) VALUES (?,?,?,?,?)", 4999, 1, "官方放映厅 · 周五电影夜", day(3, 20), t0); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO reservations(sid,mid,title,stime,ctime) VALUES (?,?,?,?,?)", offset+4999, offset+1, "官方放映厅 · 周五电影夜", day(3, 20), t0); err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, "UPDATE ids SET value=CASE WHEN value<? THEN ? ELSE value END WHERE name=?", 5011, 5011, "global")
+	_, err = tx.ExecContext(ctx, "UPDATE ids SET value=CASE WHEN value<? THEN ? ELSE value END WHERE name=?", offset+5011, offset+5011, "global")
 	return err
 }

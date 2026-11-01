@@ -1,6 +1,7 @@
 package seed_test
 
 import (
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"testing"
 
 	"jumedia-server/internal/emby/testdata"
@@ -22,7 +23,7 @@ func TestServiceSeedAndReset(t *testing.T) {
 		if err := s.SetSetting(ctx, "serviceApi", "https://keep.test"); err != nil {
 			t.Fatal(err)
 		}
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		defaults["serviceApi"] = "https://keep.test"
@@ -39,11 +40,11 @@ func TestServiceSeedAndReset(t *testing.T) {
 			}
 		}
 		check()
-		if err := seed.Seed(ctx, s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(ctx, s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		check()
-		if err := seed.Reset(ctx, s, testdata.Catalog()); err != nil {
+		if err := seed.Reset(ctx, s); err != nil {
 			t.Fatal(err)
 		}
 		defaults["serviceApi"] = ""

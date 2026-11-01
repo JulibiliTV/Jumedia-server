@@ -162,9 +162,9 @@ func TestCommunityDanmaku(t *testing.T) {
 		if filter["keyword"].([]any)[0] != "广告" || filter["regex"].([]any)[0] != "spam.*" {
 			t.Fatal(filter)
 		}
-		// Unknown CIDs use the 24-second default; absent segment indices are one.
+		// Unknown CIDs do not generate fake danmaku.
 		unknown := communityDecode(t, communityBinary(t, s, "/x/v2/dm/list/seg.so?oid=999999", nil))
-		if len(unknown) != 46 {
+		if len(unknown) != 0 {
 			t.Fatal(len(unknown))
 		}
 		for _, v := range unknown {
@@ -185,7 +185,7 @@ func TestCommunityDanmaku(t *testing.T) {
 			table string
 		}{{cid + 1000000, "archive_pages"}, {eps[0].CID, "episodes"}} {
 			if target.table == "archive_pages" {
-				p := store.Page{CID: target.cid, AID: a.AID, Position: 99, Duration: 2}
+				p := store.Page{CID: target.cid, AID: a.AID, Position: 99, Duration: 2, Media: "/upload/local.mp4"}
 				if e := store.InsertPage(context.Background(), s.Store.DB, &p); e != nil {
 					t.Fatal(e)
 				}
@@ -193,7 +193,11 @@ func TestCommunityDanmaku(t *testing.T) {
 				communityExec(t, s, "UPDATE episodes SET duration=2 WHERE cid=?", target.cid)
 			}
 			values := communityDecode(t, communityBinary(t, s, fmt.Sprintf("/x/v2/dm/list/seg.so?oid=%d", target.cid), nil))
-			if len(values) != 46 {
+			want := 46
+			if target.table == "archive_pages" {
+				want = 0
+			}
+			if len(values) != want {
 				t.Fatal(len(values))
 			}
 			for _, v := range values {
@@ -228,7 +232,7 @@ func TestCommunityDanmaku(t *testing.T) {
 				t.Fatal("concurrent seed differs")
 			}
 		}
-		if len(communityDecode(t, expected)) != 46 {
+		if len(communityDecode(t, expected)) != 0 {
 			t.Fatal("concurrent duplicate seeds")
 		}
 	})

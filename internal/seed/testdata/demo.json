@@ -1,0 +1,267 @@
+{
+  "format": "jumedia-demo",
+  "version": 1,
+  "generatedAt": 1793280407,
+  "emby": {
+    "url": "https://emby.example.test",
+    "username": "demo",
+    "password": "fixture-password"
+  },
+  "catalog": {
+    "series": [
+      {
+        "id": "series0",
+        "library": "动漫",
+        "name": "虚构星际日记 1",
+        "overview": "离线测试目录，非真实媒体。",
+        "year": 2026,
+        "genres": [
+          "科幻"
+        ],
+        "countries": [
+          "China"
+        ],
+        "studios": [],
+        "rating": 8,
+        "ended": false,
+        "airDays": [
+          "Monday"
+        ],
+        "airTime": "20:00",
+        "premiere": 1793280407,
+        "images": {
+          "primary": "https://emby.example.test/Items/demo/Images/Primary",
+          "backdrop": "https://emby.example.test/Items/demo/Images/Backdrop/0",
+          "thumb": null
+        },
+        "episodes": [
+          {
+            "id": "episode0_0",
+            "sourceId": "source0_0",
+            "name": "1",
+            "season": 1,
+            "index": 1,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode0_1",
+            "sourceId": "source0_1",
+            "name": "2",
+            "season": 1,
+            "index": 2,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode0_2",
+            "sourceId": "source0_2",
+            "name": "3",
+            "season": 1,
+            "index": 3,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode0_3",
+            "sourceId": "source0_3",
+            "name": "4",
+            "season": 1,
+            "index": 4,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          }
+        ]
+      },
+      {
+        "id": "series1",
+        "library": "动漫",
+        "name": "虚构星际日记 2",
+        "overview": "离线测试目录，非真实媒体。",
+        "year": 2026,
+        "genres": [
+          "科幻"
+        ],
+        "countries": [
+          "China"
+        ],
+        "studios": [],
+        "rating": 8,
+        "ended": false,
+        "airDays": [
+          "Monday"
+        ],
+        "airTime": "20:00",
+        "premiere": 1793280407,
+        "images": {
+          "primary": "https://emby.example.test/Items/demo/Images/Primary",
+          "backdrop": "https://emby.example.test/Items/demo/Images/Backdrop/0",
+          "thumb": null
+        },
+        "episodes": [
+          {
+            "id": "episode1_0",
+            "sourceId": "source1_0",
+            "name": "1",
+            "season": 1,
+            "index": 1,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode1_1",
+            "sourceId": "source1_1",
+            "name": "2",
+            "season": 1,
+            "index": 2,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode1_2",
+            "sourceId": "source1_2",
+            "name": "3",
+            "season": 1,
+            "index": 3,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode1_3",
+            "sourceId": "source1_3",
+            "name": "4",
+            "season": 1,
+            "index": 4,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          }
+        ]
+      },
+      {
+        "id": "series2",
+        "library": "动漫",
+        "name": "虚构星际日记 3",
+        "overview": "离线测试目录，非真实媒体。",
+        "year": 2026,
+        "genres": [
+          "科幻"
+        ],
+        "countries": [
+          "China"
+        ],
+        "studios": [],
+        "rating": 8,
+        "ended": false,
+        "airDays": [
+          "Monday"
+        ],
+        "airTime": "20:00",
+        "premiere": 1793280407,
+        "images": {
+          "primary": "https://emby.example.test/Items/demo/Images/Primary",
+          "backdrop": "https://emby.example.test/Items/demo/Images/Backdrop/0",
+          "thumb": null
+        },
+        "episodes": [
+          {
+            "id": "episode2_0",
+            "sourceId": "source2_0",
+            "name": "1",
+            "season": 1,
+            "index": 1,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode2_1",
+            "sourceId": "source2_1",
+            "name": "2",
+            "season": 1,
+            "index": 2,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode2_2",
+            "sourceId": "source2_2",
+            "name": "3",
+            "season": 1,
+            "index": 3,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "id": "episode2_3",
+            "sourceId": "source2_3",
+            "name": "4",
+            "season": 1,
+            "index": 4,
+            "overview": "虚构剧集",
+            "runtime": 1200,
+            "premiere": 1793280407,
+            "image": null,
+            "container": "mp4",
+            "width": 1920,
+            "height": 1080
+          }
+        ]
+      }
+    ],
+    "movies": []
+  }
+}

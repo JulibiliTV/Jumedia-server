@@ -60,10 +60,8 @@ type Movie struct {
 	Images                  Images
 }
 type Catalog struct {
-	Server, Username string
-	GeneratedAt      int64
-	Series           []Series
-	Movies           []Movie
+	Series []Series
+	Movies []Movie
 }
 
 func LoadCatalog(path string) (Catalog, error) {

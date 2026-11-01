@@ -48,7 +48,7 @@ func (c *Ctx) Context() context.Context { return c.R.Context() }
 type Handler func(*Ctx) (any, error)
 
 func New(s *store.Store, cfg config.Config) *Server {
-	srv := &Server{Store: s, Config: cfg, Render: render.New(s), Mux: http.NewServeMux(), Logger: slog.Default(), Emby: emby.New(cfg.EmbyURL, cfg.EmbyUsername, cfg.EmbyPassword)}
+	srv := &Server{Store: s, Config: cfg, Render: render.New(s), Mux: http.NewServeMux(), Logger: slog.Default(), Emby: emby.New("", "", "")}
 	srv.liveCaches = newLiveCacheRuntime()
 	srv.initServerSettings()
 	srv.registerLiveCaches()

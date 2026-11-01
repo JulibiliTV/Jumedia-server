@@ -3,6 +3,7 @@ package seed_test
 import (
 	"encoding/json"
 	"fmt"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -55,7 +56,7 @@ func mediaSnapshot(t *testing.T, s *store.Store) map[string]string {
 func TestMediaMigration(t *testing.T) {
 	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
 		catalog := testdata.Catalog()
-		if err := seed.Seed(t.Context(), s, catalog); err != nil {
+		if err := seedfixture.Seed(t.Context(), s, catalog); err != nil {
 			t.Fatal(err)
 		}
 		exec := func(q string, args ...any) {
@@ -138,7 +139,7 @@ func TestMissingAndSmallCatalog(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = seed.Seed(t.Context(), s, c); err != nil {
+		if err = seedfixture.Seed(t.Context(), s, c); err != nil {
 			t.Fatal(err)
 		}
 		for _, table := range []string{"archives", "seasons", "rooms", "banners", "replies", "history"} {
@@ -162,7 +163,10 @@ func TestMissingAndSmallCatalog(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = seed.Reset(t.Context(), s, c); err != nil {
+		if err = seed.Reset(t.Context(), s); err != nil {
+			t.Fatal(err)
+		}
+		if err = seedfixture.Seed(t.Context(), s, c); err != nil {
 			t.Fatal(err)
 		}
 		for table, want := range map[string]int{"archives": 2, "seasons": 1, "rooms": 1, "episodes": 1, "collections": 0, "live_messages": 19} {

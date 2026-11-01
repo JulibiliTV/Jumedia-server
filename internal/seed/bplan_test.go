@@ -2,7 +2,7 @@ package seed_test
 
 import (
 	"jumedia-server/internal/emby/testdata"
-	"jumedia-server/internal/seed"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"jumedia-server/internal/store"
 	"jumedia-server/internal/testutil"
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func TestBPlanSeed(t *testing.T) {
 	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
-		if err := seed.Seed(t.Context(), s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(t.Context(), s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		a, err := s.ArchiveByID(t.Context(), 100100)
@@ -43,7 +43,7 @@ func TestBPlanSeed(t *testing.T) {
 		if _, err := s.DB.ExecContext(t.Context(), "UPDATE users SET notice=? WHERE mid=1", "保留公告"); err != nil {
 			t.Fatal(err)
 		}
-		if err := seed.Seed(t.Context(), s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(t.Context(), s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		u, err := s.UserByID(t.Context(), 1)

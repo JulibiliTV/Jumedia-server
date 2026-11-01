@@ -2,19 +2,19 @@ package store_test
 
 import (
 	"encoding/json"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"reflect"
 	"testing"
 	"time"
 
 	"jumedia-server/internal/emby/testdata"
-	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 	"jumedia-server/internal/testutil"
 )
 
 func TestPublicationMigration009(t *testing.T) {
 	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
-		if err := seed.Seed(t.Context(), s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(t.Context(), s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		exec := func(q string, args ...any) {

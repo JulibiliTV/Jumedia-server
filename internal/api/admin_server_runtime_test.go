@@ -49,8 +49,23 @@ func TestServerEmbyStartupOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	s := New(base.Store, config.Config{DataDir: t.TempDir(), EmbyCatalog: base.Config.EmbyCatalog, EmbyURL: upstream.URL, EmbyUsername: "boot-user", EmbyPassword: "boot-password"})
+	s := New(base.Store, config.Config{DataDir: t.TempDir()})
 	t.Cleanup(s.CloseDataSources)
+	if err := s.InitDataSources(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	encrypted, err := s.encryptPassword("boot-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range map[string]string{"_demo_emby_url": upstream.URL, "_demo_emby_username": "boot-user", "_demo_emby_password": encrypted} {
+		if err = s.Store.SetSetting(t.Context(), k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = s.InitDemoMedia(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	admin := login(t, s, "jumedia", "admin123")
 	stream := func() {
 		t.Helper()
@@ -88,10 +103,12 @@ func TestServerEmbyStartupOnly(t *testing.T) {
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {"https://reset.test"}, "serverFfmpeg": {"reset-tool"}, "serverEmbyUsername": {"reset-user"}}), 0)
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"reset": {"true"}}), 0)
 	cfg, _ := s.serverSnapshot()
-	if cfg.publicOrigin != "" || s.embyClient() != before || cfg.ffmpeg != s.runtime.startup.ffmpeg {
+	if cfg.publicOrigin != "" || s.embyClient() == before || cfg.ffmpeg != s.runtime.startup.ffmpeg {
 		t.Fatal("reset did not restore boot configuration")
 	}
-	stream()
+	if _, err := s.embyClient().RawStream(t.Context(), "demo", "src", "mkv", nil); err == nil {
+		t.Fatal("reset retained demo connection")
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if len(logins) != 1 {
@@ -254,7 +271,7 @@ func TestServerRuntimeValuesAndReset(t *testing.T) {
 	t.Setenv("JUMEDIA_FFPROBE", "startup-ffprobe")
 	t.Setenv("JUMEDIA_FFMPEG_VIDEO_ENCODER", "h264_qsv")
 	base := newTestServer(t)
-	boot := config.Config{DataDir: t.TempDir(), EmbyCatalog: base.Config.EmbyCatalog, PublicOrigin: "https://startup.test", EmbyURL: "https://startup-emby.test", EmbyUsername: "startup-user", EmbyPassword: "startup-password"}
+	boot := config.Config{DataDir: t.TempDir(), PublicOrigin: "https://startup.test"}
 	s := New(base.Store, boot)
 	t.Cleanup(s.CloseDataSources)
 	admin := login(t, s, "jumedia", "admin123")
@@ -281,7 +298,7 @@ func TestServerRuntimeValuesAndReset(t *testing.T) {
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {"https://reset.test"}, "serverFfmpeg": {"reset-tool"}}), 0)
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"reset": {"true"}}), 0)
 	fallback, fallbackClient = s.serverSnapshot()
-	if fallback != startup || fallbackClient != oldClient {
+	if fallback != startup || fallbackClient == oldClient {
 		t.Fatal("reset did not restore startup")
 	}
 }

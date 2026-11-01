@@ -1,6 +1,7 @@
 package seed_test
 
 import (
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"reflect"
 	"strings"
 	"testing"
@@ -15,7 +16,15 @@ func TestDemoLiveSeedAndReset(t *testing.T) {
 	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
 		ctx := t.Context()
 		catalog := testdata.Catalog()
-		for _, populate := range []func() error{func() error { return seed.Seed(ctx, s, catalog) }, func() error { return seed.Reset(ctx, s, catalog) }} {
+		for _, populate := range []func() error{func() error { return seedfixture.Seed(ctx, s, catalog) }, func() error {
+			if err := seed.Reset(ctx, s); err != nil {
+				return err
+			}
+			if n, err := s.ListLiveRoom(ctx, ""); err != nil || len(n) != 0 {
+				t.Fatal("reset retained rooms", err)
+			}
+			return seedfixture.Seed(ctx, s, catalog)
+		}} {
 			if err := populate(); err != nil {
 				t.Fatal(err)
 			}

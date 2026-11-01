@@ -310,7 +310,7 @@ func (s *Server) adminSettings(c *Ctx) (any, error) {
 	}
 	delete(settings, liveChatSecretKey)
 	for key := range settings {
-		if strings.HasPrefix(key, "serverEmby") {
+		if strings.HasPrefix(key, "serverEmby") || strings.HasPrefix(key, "_demo_") {
 			delete(settings, key)
 		}
 	}

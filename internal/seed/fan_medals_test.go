@@ -3,6 +3,7 @@ package seed_test
 import (
 	"jumedia-server/internal/emby/testdata"
 	"jumedia-server/internal/seed"
+	seedfixture "jumedia-server/internal/seed/testdata"
 	"jumedia-server/internal/store"
 	"jumedia-server/internal/testutil"
 	"testing"
@@ -56,14 +57,14 @@ func TestFanMedalsSeedAndReset(t *testing.T) {
 				t.Fatal(ruid, intimacy, wearing, err)
 			}
 		}
-		if err := seed.Seed(t.Context(), s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(t.Context(), s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		check()
 		if _, err := s.DB.ExecContext(t.Context(), "UPDATE fan_medals SET intimacy=99 WHERE medal_id=7001"); err != nil {
 			t.Fatal(err)
 		}
-		if err := seed.Seed(t.Context(), s, testdata.Catalog()); err != nil {
+		if err := seedfixture.Seed(t.Context(), s, testdata.Catalog()); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.Migrate(t.Context()); err != nil {
@@ -73,9 +74,11 @@ func TestFanMedalsSeedAndReset(t *testing.T) {
 		if err := s.DB.QueryRowContext(t.Context(), "SELECT intimacy FROM fan_medals WHERE medal_id=7001").Scan(&n); err != nil || n != 99 {
 			t.Fatal(n, err)
 		}
-		if err := seed.Reset(t.Context(), s, testdata.Catalog()); err != nil {
+		if err := seed.Reset(t.Context(), s); err != nil {
 			t.Fatal(err)
 		}
-		check()
+		if err := s.DB.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM fan_medals").Scan(&n); err != nil || n != 0 {
+			t.Fatal(n, err)
+		}
 	})
 }

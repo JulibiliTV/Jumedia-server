@@ -132,8 +132,10 @@ func TestAdminSettingsAndReset(t *testing.T) {
 		if adminTestCount(t, s, "SELECT COUNT(*) FROM regions WHERE name=?", "reset removes me") != 0 {
 			t.Fatal("reset didn't clear data")
 		}
-		adminTestLog(t, s, "重置站点数据", "")
-		// A custom admin disappears during reset, so audit logging must use a nullable actor.
+		if adminTestCount(t, s, "SELECT COUNT(*) FROM archives") != 0 {
+			t.Fatal("reset recreated content")
+		}
+		// Every custom administrator survives reset with the same password.
 		id, err := s.Store.NextID(t.Context())
 		if err != nil {
 			t.Fatal(err)
@@ -150,8 +152,8 @@ func TestAdminSettingsAndReset(t *testing.T) {
 		}
 		customSession := login(t, s, "t9custom", "admin123")
 		assertCode(t, adminTestPost(t, s, customSession, "settings/save", url.Values{"reset": {"true"}}), 0)
-		if adminTestCount(t, s, "SELECT COUNT(*) FROM users WHERE mid=?", id) != 0 {
-			t.Fatal("custom user survived reset")
+		if adminTestCount(t, s, "SELECT COUNT(*) FROM users WHERE mid=?", id) != 1 {
+			t.Fatal("custom administrator lost")
 		}
 	})
 }
