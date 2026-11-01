@@ -74,14 +74,9 @@ func (s *Server) sourceJSON(ctx context.Context, ds store.DataSource) (map[strin
 	b, _ := json.Marshal(ds)
 	out := map[string]any{}
 	_ = json.Unmarshal(b, &out)
-	u, e := s.Store.UserByID(ctx, ds.MID)
-	if e != nil && !errors.Is(e, sql.ErrNoRows) {
+	owner, e := s.Render.Owner(ctx, ds.MID)
+	if e != nil {
 		return nil, e
-	}
-	owner := map[string]any{"mid": ds.MID, "name": "已注销用户", "face": ""}
-	if u != nil {
-		owner["name"] = u.Uname
-		owner["face"] = u.Face
 	}
 	var count int
 	e = s.Store.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM archives WHERE origin_ds=? AND state<>? AND state<>?", ds.ID, -100, -6).Scan(&count)

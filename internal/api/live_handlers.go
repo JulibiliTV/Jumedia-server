@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"jumedia-server/internal/db"
+	"jumedia-server/internal/render"
 	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 )
@@ -124,7 +125,7 @@ func (l *liveAPI) master(c *Ctx) (any, error) {
 	if len(rooms) > 0 {
 		rid = rooms[0].RoomID
 	}
-	return liveMap{"info": liveMap{"uid": u.MID, "uname": u.Uname, "face": u.Face, "gender": 0, "official_verify": liveMap{"type": -1, "desc": ""}}, "follower_num": fans, "room_id": rid, "room_news": liveMap{"content": ""}}, nil
+	return liveMap{"info": liveMap{"uid": u.MID, "uname": u.Uname, "face": render.Face(ParseUnicodeID(c.P["uid"]), u.Face), "gender": 0, "official_verify": liveMap{"type": -1, "desc": ""}}, "follower_num": fans, "room_id": rid, "room_news": liveMap{"content": ""}}, nil
 }
 func liveToken() string { b := make([]byte, 12); _, _ = rand.Read(b); return hex.EncodeToString(b) }
 func (l *liveAPI) appendMessage(c *Ctx, rid, uid int64, text string) error {
@@ -189,12 +190,12 @@ func (l *liveAPI) history(c *Ctx) (any, error) {
 func (l *liveAPI) messageUser(c *Ctx, uid int64, fallback string) (string, string, error) {
 	u, e := l.s.Store.UserByID(c.Context(), uid)
 	if errors.Is(e, sql.ErrNoRows) {
-		return fallback, "", nil
+		return fallback, render.Face(uid, ""), nil
 	}
 	if e != nil {
 		return "", "", e
 	}
-	return u.Uname, u.Face, nil
+	return u.Uname, render.Face(u.MID, u.Face), nil
 }
 func (l *liveAPI) superChat(c *Ctx) (any, error) {
 	rows, e := l.s.Store.ListLiveMessage(c.Context(), "WHERE room_id=? AND price IS NOT NULL AND price<>0 ORDER BY id", ParseUnicodeID(c.P["room_id"]))

@@ -592,7 +592,7 @@
   "missingMember": {
     "mid": "999",
     "uname": "已注销用户",
-    "avatar": "",
+    "avatar": "/mock/avatars/default8.png",
     "sex": "保密",
     "sign": "",
     "level_info": {
@@ -611,7 +611,7 @@
   "missingOwner": {
     "mid": 999,
     "name": "已注销用户",
-    "face": ""
+    "face": "/mock/avatars/default8.png"
   },
   "level": {
     "current_level": 6,

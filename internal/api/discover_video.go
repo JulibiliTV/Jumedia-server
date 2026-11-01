@@ -125,7 +125,7 @@ func (s *Server) discoverDetail(c *Ctx) (any, error) {
 			tags = append(tags, render.M{"tag_id": len(tags) + 1, "tag_name": tag})
 		}
 	}
-	return render.M{"View": view, "Card": render.M{"card": render.M{"mid": strconv.FormatInt(u.MID, 10), "name": u.Uname, "face": u.Face, "sign": u.Sign, "fans": fans, "attention": attention, "level_info": render.LevelInfo(*u)}, "following": following, "archive_count": count, "follower": fans, "like_num": 0}, "Tags": tags, "Related": rows}, nil
+	return render.M{"View": view, "Card": render.M{"card": render.M{"mid": strconv.FormatInt(u.MID, 10), "name": u.Uname, "face": render.Face(u.MID, u.Face), "sign": u.Sign, "fans": fans, "attention": attention, "level_info": render.LevelInfo(*u)}, "following": following, "archive_count": count, "follower": fans, "like_num": 0}, "Tags": tags, "Related": rows}, nil
 }
 func (s *Server) discoverPlayer(c *Ctx) (any, error) {
 	aid, cid := NumberUnicode(c.P["aid"], 0), NumberUnicode(c.P["cid"], 0)

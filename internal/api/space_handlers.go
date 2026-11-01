@@ -40,7 +40,7 @@ func (s *Server) spaceFollowings(c *Ctx) (any, error) {
 		if mutual {
 			attribute = 6
 		}
-		list = append(list, render.M{"mid": row.FID, "uname": u.Uname, "face": u.Face, "sign": u.Sign, "mtime": row.Mtime, "attribute": attribute})
+		list = append(list, render.M{"mid": row.FID, "uname": u.Uname, "face": render.Face(row.FID, u.Face), "sign": u.Sign, "mtime": row.Mtime, "attribute": attribute})
 	}
 	return render.M{"total": len(rows), "list": list}, nil
 }
@@ -75,7 +75,7 @@ func (s *Server) spaceInfo(c *Ctx) (any, error) {
 		role = 1
 		title = "Jumedia 官方账号"
 	}
-	return render.M{"mid": u.MID, "name": u.Uname, "sex": u.Sex, "face": u.Face, "sign": u.Sign, "level": u.Level, "birthday": birthday, "top_photo": u.TopPhoto, "is_followed": followed, "silence": u.Status, "jointime": u.Ctime, "vip": render.M{"status": u.VIP, "label": render.M{"text": label}}, "official": render.M{"role": role, "title": title}, "live_room": room}, nil
+	return render.M{"mid": u.MID, "name": u.Uname, "sex": u.Sex, "face": render.Face(u.MID, u.Face), "sign": u.Sign, "level": u.Level, "birthday": birthday, "top_photo": u.TopPhoto, "is_followed": followed, "silence": u.Status, "jointime": u.Ctime, "vip": render.M{"status": u.VIP, "label": render.M{"text": label}}, "official": render.M{"role": role, "title": title}, "live_room": room}, nil
 }
 func (s *Server) spaceRelation(c *Ctx) (any, error) {
 	mid, me := ParseWideID(c.P["mid"]), ActorID(c)
@@ -142,7 +142,7 @@ func (s *Server) spaceCard(c *Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return render.M{"card": render.M{"mid": strconv.FormatInt(u.MID, 10), "name": u.Uname, "face": u.Face, "sign": u.Sign, "sex": u.Sex, "fans": fans, "attention": attention, "level_info": render.LevelInfo(*u)}, "space": render.M{"s_img": u.TopPhoto, "l_img": u.TopPhoto}, "following": following, "archive_count": count, "follower": fans, "like_num": likes}, nil
+	return render.M{"card": render.M{"mid": strconv.FormatInt(u.MID, 10), "name": u.Uname, "face": render.Face(u.MID, u.Face), "sign": u.Sign, "sex": u.Sex, "fans": fans, "attention": attention, "level_info": render.LevelInfo(*u)}, "space": render.M{"s_img": u.TopPhoto, "l_img": u.TopPhoto}, "following": following, "archive_count": count, "follower": fans, "like_num": likes}, nil
 }
 
 // Public space listings filter only state, not the uploader's status (unlike

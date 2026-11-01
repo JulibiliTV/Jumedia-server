@@ -37,6 +37,37 @@ var baseSubRegions = []struct {
 	{1031, []string{"生活经验", "技能分享"}},
 }
 
+// Fill only missing faces, preserving custom and imported demo avatars.
+func fillUserFaces(ctx context.Context, tx *db.Tx) error {
+	rows, err := tx.QueryContext(ctx, "SELECT mid FROM users WHERE face='' OR face IS NULL")
+	if err != nil {
+		return err
+	}
+	var mids []int64
+	for rows.Next() {
+		var mid int64
+		if err = rows.Scan(&mid); err != nil {
+			rows.Close()
+			return err
+		}
+		mids = append(mids, mid)
+	}
+	err = rows.Err()
+	closeErr := rows.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	for _, mid := range mids {
+		if _, err = tx.ExecContext(ctx, "UPDATE users SET face=? WHERE mid=? AND (face='' OR face IS NULL)", Avatar(mid), mid); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func BaseTx(ctx context.Context, tx *db.Tx) error {
 	for name, value := range map[string]int64{"global": 1000, "sessions": 0} {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO ids(name,value) VALUES (?,?) ON CONFLICT(name) DO NOTHING", name, value); err != nil {
@@ -44,6 +75,9 @@ func BaseTx(ctx context.Context, tx *db.Tx) error {
 		}
 	}
 	if _, err := tx.ExecContext(ctx, "UPDATE ids SET value=value WHERE name=?", "global"); err != nil {
+		return err
+	}
+	if err := fillUserFaces(ctx, tx); err != nil {
 		return err
 	}
 	for _, v := range regions {
@@ -158,7 +192,7 @@ func adminTx(ctx context.Context, tx *db.Tx, username, password string, recover 
 		if !recover {
 			return fmt.Errorf("管理员引导用户名已存在，请使用 jumedia admin 找回")
 		}
-		if _, err = tx.ExecContext(ctx, "UPDATE users SET role=?,password=?,status=0 WHERE mid=?", "admin", string(hash), mid); err != nil {
+		if _, err = tx.ExecContext(ctx, "UPDATE users SET role=?,password=?,status=0,face=CASE WHEN face='' OR face IS NULL THEN ? ELSE face END WHERE mid=?", "admin", string(hash), Avatar(mid), mid); err != nil {
 			return err
 		}
 		_, err = tx.ExecContext(ctx, "UPDATE settings SET value=? WHERE key=? AND value=?", fmt.Sprint(mid), "officialMid", "0")
@@ -174,7 +208,7 @@ func adminTx(ctx context.Context, tx *db.Tx, username, password string, recover 
 	if err != nil {
 		return err
 	}
-	if err = store.InsertUser(ctx, tx, &store.User{MID: mid, Username: username, Password: string(hash), Uname: username, Role: "admin", Ctime: time.Now().Unix(), Sex: "保密"}); err != nil {
+	if err = store.InsertUser(ctx, tx, &store.User{MID: mid, Username: username, Password: string(hash), Uname: username, Face: Avatar(mid), Role: "admin", Ctime: time.Now().Unix(), Sex: "保密"}); err != nil {
 		return err
 	}
 	// A previously empty official account follows the first real administrator.

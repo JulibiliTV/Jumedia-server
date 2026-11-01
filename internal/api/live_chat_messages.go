@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"jumedia-server/internal/render"
 	"jumedia-server/internal/store"
 )
 
@@ -32,7 +33,7 @@ func liveChatDanmu(message *store.LiveMessage, user *store.User, origin string, 
 	}
 	meta[1], meta[2], meta[3], meta[4] = 1, 25, 0xffffff, message.TS*1000
 	meta[13] = liveMap{}
-	meta[15] = liveMap{"user": liveMap{"uid": user.MID, "base": liveMap{"name": user.Uname, "face": liveChatFace(origin, user.Face)}, "medal": medal}, "extra": string(extra)}
+	meta[15] = liveMap{"user": liveMap{"uid": user.MID, "base": liveMap{"name": user.Uname, "face": liveChatFace(origin, render.Face(user.MID, user.Face))}, "medal": medal}, "extra": string(extra)}
 	body, _ := json.Marshal(liveMap{"cmd": "DANMU_MSG", "info": []any{meta, message.Text, []any{user.MID, user.Uname, 0, 0, 0, 10000, 1, ""}, legacy, []any{0, 0, 0, ">50000", 0}}})
 	return encodeLivePacket(5, body)
 }
@@ -52,7 +53,7 @@ func (s *Server) BroadcastLiveSuperChat(ctx context.Context, message store.LiveM
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(liveMap{"cmd": "SUPER_CHAT_MESSAGE", "data": liveChatSuperChat(message, user.Uname, liveChatFace(origin, user.Face))})
+	body, err := json.Marshal(liveMap{"cmd": "SUPER_CHAT_MESSAGE", "data": liveChatSuperChat(message, user.Uname, liveChatFace(origin, render.Face(user.MID, user.Face)))})
 	if err != nil {
 		return err
 	}

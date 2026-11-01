@@ -17,7 +17,7 @@ func (s *Server) registerFoundation() {
 		if u.VIP != 0 {
 			label = "年度大会员"
 		}
-		return map[string]any{"isLogin": true, "mid": u.MID, "uname": u.Uname, "face": u.Face, "level_info": render.LevelInfo(*u), "money": u.Coins, "moral": 70, "email_verified": 1, "mobile_verified": 0, "vipStatus": u.VIP, "vipType": store.BoolInt(u.VIP != 0) * 2, "vip_label": map[string]any{"text": label}, "official": map[string]any{"type": -1}, "wbi_img": wbi, "role": u.Role, "sign": u.Sign}, nil
+		return map[string]any{"isLogin": true, "mid": u.MID, "uname": u.Uname, "face": render.Face(u.MID, u.Face), "level_info": render.LevelInfo(*u), "money": u.Coins, "moral": 70, "email_verified": 1, "mobile_verified": 0, "vipStatus": u.VIP, "vipType": store.BoolInt(u.VIP != 0) * 2, "vip_label": map[string]any{"text": label}, "official": map[string]any{"type": -1}, "wbi_img": wbi, "role": u.Role, "sign": u.Sign}, nil
 	})
 	s.handle("/x/jumedia/site", func(c *Ctx) (any, error) {
 		settings, err := s.Store.Settings(c.Context())

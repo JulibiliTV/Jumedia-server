@@ -113,7 +113,7 @@ func (s *Server) communityResources(c *Ctx) (any, error) {
 		}
 		medias = append(medias, render.M{"id": a.AID, "type": 2, "title": title, "cover": a.Pic, "intro": a.Desc, "duration": render.TotalDuration(a), "upper": owner, "attr": attr, "cnt_info": render.M{"collect": a.Stat.Favorite, "play": a.Stat.View, "danmaku": a.Stat.Danmaku}, "bvid": a.BVID, "bv_id": a.BVID, "pubtime": a.Pubdate, "fav_time": r.item.Mtime, "ugc": ugc})
 	}
-	return render.M{"info": render.M{"id": f.ID, "fid": f.ID, "mid": f.MID, "title": f.Title, "intro": f.Intro, "cover": cover, "media_count": len(items), "privacy": f.Privacy, "upper": render.M{"mid": u.MID, "name": u.Uname, "face": u.Face}, "ctime": f.Ctime}, "medias": medias, "has_more": pn*ps < float64(len(filtered))}, nil
+	return render.M{"info": render.M{"id": f.ID, "fid": f.ID, "mid": f.MID, "title": f.Title, "intro": f.Intro, "cover": cover, "media_count": len(items), "privacy": f.Privacy, "upper": render.M{"mid": u.MID, "name": u.Uname, "face": render.Face(u.MID, u.Face)}, "ctime": f.Ctime}, "medias": medias, "has_more": pn*ps < float64(len(filtered))}, nil
 }
 func (s *Server) communityFolderAdd(c *Ctx) (any, error) {
 	u, e := c.CSRF()

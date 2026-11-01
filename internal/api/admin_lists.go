@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"jumedia-server/internal/render"
 	"jumedia-server/internal/store"
 )
 
@@ -29,6 +30,7 @@ func (s *Server) adminUsers(c *Ctx) (any, error) {
 	out := []map[string]any{}
 	for _, u := range selected {
 		v := adminObject(u)
+		v["face"] = render.Face(u.MID, u.Face)
 		var n int
 		if err = s.Store.DB.QueryRowContext(c.Context(), "SELECT COUNT(*) FROM archives WHERE mid=?", u.MID).Scan(&n); err != nil {
 			return nil, err

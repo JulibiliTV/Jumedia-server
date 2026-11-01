@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 )
 
@@ -19,6 +20,16 @@ type M = map[string]any
 type Renderer struct{ Store *store.Store }
 
 func New(s *store.Store) *Renderer { return &Renderer{Store: s} }
+
+// Face preserves existing avatars and assigns a stable default to empty ones.
+// API responses apply their normal public-origin conversion after rendering.
+func Face(mid int64, face string) string {
+	if face == "" {
+		return seed.Avatar(mid)
+	}
+	return face
+}
+
 func LevelInfo(u store.User) M {
 	var next any = (u.Level + 1) * 2000
 	if u.Level >= 6 {
@@ -93,22 +104,22 @@ func merge(v M, extra []M) M {
 func (r *Renderer) Owner(ctx context.Context, mid int64) (M, error) {
 	u, err := r.Store.UserByID(ctx, mid)
 	if errors.Is(err, sql.ErrNoRows) {
-		return M{"mid": mid, "name": "已注销用户", "face": ""}, nil
+		return M{"mid": mid, "name": "已注销用户", "face": Face(mid, "")}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return M{"mid": mid, "name": u.Uname, "face": u.Face}, nil
+	return M{"mid": mid, "name": u.Uname, "face": Face(mid, u.Face)}, nil
 }
 func (r *Renderer) MemberJSON(ctx context.Context, mid int64) (M, error) {
 	u, err := r.Store.UserByID(ctx, mid)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	v := M{"mid": strconv.FormatInt(mid, 10), "uname": "已注销用户", "avatar": "", "sex": "保密", "sign": "", "level_info": M{"current_level": 0}, "vip": M{"vipStatus": 0, "vipType": 0}}
+	v := M{"mid": strconv.FormatInt(mid, 10), "uname": "已注销用户", "avatar": Face(mid, ""), "sex": "保密", "sign": "", "level_info": M{"current_level": 0}, "vip": M{"vipStatus": 0, "vipType": 0}}
 	if u != nil {
 		v["uname"] = u.Uname
-		v["avatar"] = u.Face
+		v["avatar"] = Face(mid, u.Face)
 		v["sex"] = u.Sex
 		v["sign"] = u.Sign
 		v["level_info"] = LevelInfo(*u)

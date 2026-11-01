@@ -165,15 +165,15 @@ func (s *Server) bplanPortal(c *Ctx) (any, error) {
 	}
 	upRows, liveRows := []render.M{}, []render.M{}
 	for _, up := range ups {
-		upRows = append(upRows, render.M{"mid": up.MID, "uname": up.Uname, "face": up.Face, "has_update": updates[up.MID], "is_reserve_recall": false})
+		upRows = append(upRows, render.M{"mid": up.MID, "uname": up.Uname, "face": render.Face(up.MID, up.Face), "has_update": updates[up.MID], "is_reserve_recall": false})
 		for _, r := range rooms {
 			if r.UID == up.MID {
-				liveRows = append(liveRows, render.M{"mid": r.UID, "uname": up.Uname, "face": up.Face, "room_id": r.RoomID, "title": r.Title, "jump_url": fmt.Sprintf("/live/%d", r.RoomID), "is_reserve_recall": false})
+				liveRows = append(liveRows, render.M{"mid": r.UID, "uname": up.Uname, "face": render.Face(up.MID, up.Face), "room_id": r.RoomID, "title": r.Title, "jump_url": fmt.Sprintf("/live/%d", r.RoomID), "is_reserve_recall": false})
 				break
 			}
 		}
 	}
-	return render.M{"live_users": render.M{"count": len(liveRows), "group": "", "items": liveRows}, "my_info": render.M{"mid": u.MID, "name": u.Uname, "face": u.Face, "follower": followers, "following": following, "dyns": dyns}, "up_list": render.M{"has_more": false, "items": upRows}}, nil
+	return render.M{"live_users": render.M{"count": len(liveRows), "group": "", "items": liveRows}, "my_info": render.M{"mid": u.MID, "name": u.Uname, "face": render.Face(u.MID, u.Face), "follower": followers, "following": following, "dyns": dyns}, "up_list": render.M{"has_more": false, "items": upRows}}, nil
 }
 func (s *Server) bplanOnline(c *Ctx) (any, error) {
 	regions, err := s.Store.ListRegion(c.Context(), "ORDER BY sort,tid")

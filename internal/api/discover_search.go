@@ -39,7 +39,7 @@ func (s *Server) discoverSearchUser(c *Ctx, u store.User) (render.M, error) {
 	if err = s.Store.DB.QueryRowContext(c.Context(), "SELECT COUNT(*) FROM archives WHERE mid=? AND state=0", u.MID).Scan(&videos); err != nil {
 		return nil, err
 	}
-	return render.M{"type": "bili_user", "mid": u.MID, "uname": u.Uname, "usign": u.Sign, "upic": u.Face, "fans": fans, "videos": videos, "level": u.Level}, nil
+	return render.M{"type": "bili_user", "mid": u.MID, "uname": u.Uname, "usign": u.Sign, "upic": render.Face(u.MID, u.Face), "fans": fans, "videos": videos, "level": u.Level}, nil
 }
 
 // allSearch differs deliberately: all searches season styles and only user
