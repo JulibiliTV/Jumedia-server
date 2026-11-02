@@ -97,6 +97,20 @@ func (s *Server) spaceRelation(c *Ctx) (any, error) {
 	if a && b {
 		attrA, attrB = 6, 6
 	}
+	blocked, err := Count(c, s.Store.DB, "SELECT COUNT(*) FROM user_blocks WHERE mid=? AND fid=?", me, mid)
+	if err != nil {
+		return nil, err
+	}
+	if blocked > 0 {
+		attrA = 128
+	}
+	blockedBy, err := Count(c, s.Store.DB, "SELECT COUNT(*) FROM user_blocks WHERE mid=? AND fid=?", mid, me)
+	if err != nil {
+		return nil, err
+	}
+	if blockedBy > 0 {
+		attrB = 128
+	}
 	return render.M{"relation": render.M{"mid": NumberWide(c.P["mid"], 0), "attribute": attrA, "mtime": 0}, "be_relation": render.M{"mid": me, "attribute": attrB}}, nil
 }
 func (s *Server) spaceStat(c *Ctx) (any, error) {
@@ -115,7 +129,11 @@ func (s *Server) spaceStat(c *Ctx) (any, error) {
 	if math.IsNaN(count) || math.IsInf(count, 0) {
 		encodedCount = nil // JSON.stringify encodes nonfinite Numbers as null.
 	}
-	return render.M{"mid": number, "following": following, "whisper": 0, "black": 0, "follower": encodedCount}, nil
+	black, err := Count(c, s.Store.DB, "SELECT COUNT(*) FROM user_blocks WHERE mid=?", mid)
+	if err != nil {
+		return nil, err
+	}
+	return render.M{"mid": number, "following": following, "whisper": 0, "black": black, "follower": encodedCount}, nil
 }
 func (s *Server) spaceCard(c *Ctx) (any, error) {
 	u, err := s.spaceUser(c, ParseWideID(c.P["mid"]))

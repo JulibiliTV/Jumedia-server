@@ -179,6 +179,15 @@ func (s *Server) adminReplies(c *Ctx) (any, error) {
 	}
 	list := []store.Reply{}
 	for _, r := range replies {
+		if BoolParam(c.P["reported"]) {
+			count, _, err := s.commentReportSummary(c, r.RPID)
+			if err != nil {
+				return nil, err
+			}
+			if count == 0 {
+				continue
+			}
+		}
 		name := ""
 		u, e := s.Store.UserByID(c.Context(), r.MID)
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
@@ -203,6 +212,11 @@ func (s *Server) adminReplies(c *Ctx) (any, error) {
 			return nil, e
 		}
 		v["flag"] = flagOf(words, r.Message)
+		count, reasons, err := s.commentReportSummary(c, r.RPID)
+		if err != nil {
+			return nil, err
+		}
+		v["report_count"], v["report_reasons"] = count, reasons
 		v["archive"] = nil
 		a, e := s.Store.ArchiveByID(c.Context(), r.OID)
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {

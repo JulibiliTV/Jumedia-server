@@ -233,3 +233,38 @@ func TestDemoPackageValidationAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestModerationResetPreservesAdminsWithoutTheirReportsOrBlocks(t *testing.T) {
+	testutil.Drivers(t, func(t *testing.T, s *store.Store) {
+		ctx := t.Context()
+		if err := seed.Seed(ctx, s); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"first", "second"} {
+			if err := seed.Admin(ctx, s, name, "fixture-password"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		first, _ := s.UserByUsername(ctx, "first")
+		second, _ := s.UserByUsername(ctx, "second")
+		if _, err := s.DB.ExecContext(ctx, "INSERT INTO comment_reports(mid,rpid,reason,content,status,ctime) VALUES (?,?,?,'fixture','pending',1)", first.MID, 999, "7"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.DB.ExecContext(ctx, "INSERT INTO user_blocks(mid,fid,ctime) VALUES (?,?,1)", first.MID, second.MID); err != nil {
+			t.Fatal(err)
+		}
+		if err := seed.Reset(ctx, s); err != nil {
+			t.Fatal(err)
+		}
+		for _, table := range []string{"comment_reports", "user_blocks"} {
+			var count int
+			if err := s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil || count != 0 {
+				t.Fatalf("reset retained %s: %d (%v)", table, count, err)
+			}
+		}
+		users, err := s.ListUser(ctx, "")
+		if err != nil || len(users) != 2 {
+			t.Fatal("admins changed", err)
+		}
+	})
+}

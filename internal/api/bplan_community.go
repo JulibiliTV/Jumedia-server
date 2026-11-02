@@ -23,6 +23,10 @@ func (s *Server) bplanReply(c *Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	all, err = s.Store.VisibleReplies(c.Context(), ActorID(c), all)
+	if err != nil {
+		return nil, err
+	}
 	top := []store.Reply{}
 	for _, r := range all {
 		if r.Root == 0 {

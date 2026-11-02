@@ -194,6 +194,9 @@ func (s *Server) spaceShare(c *Ctx) (any, error) {
 	return map[string]any{"share_url": s.Origin(c.R) + "/video/" + a.BVID, "count": count}, err
 }
 func (s *Server) spaceModify(c *Ctx) (any, error) {
+	if c.P["act"] == "5" || c.P["act"] == "6" {
+		return s.communityBlock(c)
+	}
 	u, err := c.CSRF()
 	if err != nil {
 		return nil, err
@@ -208,6 +211,15 @@ func (s *Server) spaceModify(c *Ctx) (any, error) {
 	}
 	if n == 0 {
 		return nil, Fail(22003, "用户不存在")
+	}
+	if c.P["act"] == "1" {
+		blocked, err := Count(c, s.Store.DB, "SELECT COUNT(*) FROM user_blocks WHERE mid=? AND fid=?", u.MID, fid)
+		if err != nil {
+			return nil, err
+		}
+		if blocked > 0 {
+			return nil, Fail(-403, "请先解除拉黑")
+		}
 	}
 	return nil, s.WriteTx(c, func(tx *db.Tx) error {
 		if _, err := tx.ExecContext(c.Context(), "DELETE FROM relations WHERE mid=? AND fid=?", u.MID, fid); err != nil {

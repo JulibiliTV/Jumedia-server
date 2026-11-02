@@ -274,6 +274,10 @@ func (r *Renderer) ReplyJSON(ctx context.Context, reply store.Reply, me int64, w
 		if err != nil {
 			return nil, err
 		}
+		children, err = r.Store.VisibleReplies(ctx, me, children)
+		if err != nil {
+			return nil, err
+		}
 	}
 	prefix := ""
 	if reply.Parent != 0 && reply.Parent != reply.Root {

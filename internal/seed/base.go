@@ -169,7 +169,7 @@ func ResetTx(ctx context.Context, tx *db.Tx) error {
 	return BaseTx(ctx, tx)
 }
 
-var businessTables = []string{"live_caches", "fan_medals", "reservations", "reply_reactions", "replies", "live_messages", "collection_items", "archive_pages", "fav_items", "history", "history_paused", "toview", "bangumi_follow", "dm_config", "dm_filter", "danmaku", "seeded_danmaku", "relations", "likes", "dislikes", "coins", "banners", "sessions", "qrcodes", "logs", "rooms", "live_area_children", "live_areas", "collections", "fav_folders", "archives", "episodes", "seasons", "regions", "data_sources"}
+var businessTables = []string{"comment_reports", "user_blocks", "live_caches", "fan_medals", "reservations", "reply_reactions", "replies", "live_messages", "collection_items", "archive_pages", "fav_items", "history", "history_paused", "toview", "bangumi_follow", "dm_config", "dm_filter", "danmaku", "seeded_danmaku", "relations", "likes", "dislikes", "coins", "banners", "sessions", "qrcodes", "logs", "rooms", "live_area_children", "live_areas", "collections", "fav_folders", "archives", "episodes", "seasons", "regions", "data_sources"}
 
 func BootstrapAdmin(ctx context.Context, s *store.Store, username, password string) error {
 	return s.DB.WithTx(ctx, func(tx *db.Tx) error {

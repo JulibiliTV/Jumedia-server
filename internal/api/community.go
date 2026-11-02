@@ -16,6 +16,8 @@ func (s *Server) registerCommunity() {
 		"/x/v2/reply/del":                   s.communityReplyDelete,
 		"/x/v2/reply/action":                s.communityReplyReact(1),
 		"/x/v2/reply/hate":                  s.communityReplyReact(2),
+		"/x/v2/reply/report":                s.communityReport,
+		"/x/relation/blacks":               s.communityBlocks,
 		"/x/v2/dm/list/seg.so":              s.communityDMSegment,
 		"/x/v2/dm/web/view":                 s.communityDMView,
 		"/x/v2/dm/web/config":               s.communityDMConfig,

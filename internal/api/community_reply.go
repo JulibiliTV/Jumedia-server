@@ -19,6 +19,10 @@ func (s *Server) communityReplies(c *Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	all, err = s.Store.VisibleReplies(c.Context(), ActorID(c), all)
+	if err != nil {
+		return nil, err
+	}
 	top := []store.Reply{}
 	for _, r := range all {
 		if r.Root == 0 {
@@ -65,7 +69,21 @@ func (s *Server) communityReplyChildren(c *Ctx) (any, error) {
 	if e != nil {
 		return nil, e
 	}
+	visible, e := s.Store.VisibleReplies(c.Context(), ActorID(c), []store.Reply{*root})
+	if e != nil {
+		return nil, e
+	}
+	if len(visible) == 0 {
+		return nil, Fail(12022, "评论已被删除")
+	}
+	if oid := ParseID(c.P["oid"]); oid != 0 && root.OID != oid {
+		return nil, Fail(12022, "评论已被删除")
+	}
 	children, e := s.Store.ListReply(c.Context(), "WHERE root=? ORDER BY ctime,rpid", root.RPID)
+	if e != nil {
+		return nil, e
+	}
+	children, e = s.Store.VisibleReplies(c.Context(), ActorID(c), children)
 	if e != nil {
 		return nil, e
 	}
@@ -96,6 +114,9 @@ func (s *Server) communityReplyAdd(c *Ctx) (any, error) {
 	message := Trim(c.P["message"])
 	if message == "" || UTF16Length(message) > 1000 {
 		return nil, Fail(12025, "评论字数需在 1–1000 字之间")
+	}
+	if err := s.validateCommentText(c, message); err != nil {
+		return nil, err
 	}
 	r := store.Reply{OID: ParseID(c.P["oid"]), MID: u.MID, Root: ParseID(c.P["root"]), Parent: ParseID(c.P["parent"]), Message: message, Ctime: time.Now().Unix()}
 	e = s.WriteTx(c, func(tx *db.Tx) error {
@@ -193,6 +214,9 @@ func communityDeleteReplies(c *Ctx, tx *db.Tx, rpid int64) error {
 		if err := communitySyncReplyCount(c, tx, oid); err != nil {
 			return err
 		}
+	}
+	if _, err := tx.ExecContext(c.Context(), "UPDATE comment_reports SET status='removed' WHERE status='pending' AND NOT EXISTS (SELECT 1 FROM replies r WHERE r.rpid=comment_reports.rpid)"); err != nil {
+		return err
 	}
 	return nil
 }
