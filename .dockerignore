@@ -7,5 +7,4 @@ jumedia
 *.test
 coverage.out
 .env*
-web
 deploy

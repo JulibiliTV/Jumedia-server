@@ -1,15 +1,27 @@
 # Production deployment. Put this file and an optional .env (JUMEDIA_* overrides) in one directory,
 # then: docker compose pull && docker compose up -d
 # Data lives in JUMEDIA_HOST_DATA (default /data/jumedia), which must be writable by uid 10001.
+# Web-only release: docker compose pull web && docker compose up web
 services:
+  # Installs the web app into the shared `web` volume and exits; the server reads it on every request.
+  web:
+    image: ${JUMEDIA_WEB_IMAGE:-ghcr.io/julibilitv/jumedia-web:latest}
+    restart: "no"
+    volumes:
+      - web:/web
+
   jumedia:
     image: ${JUMEDIA_IMAGE:-ghcr.io/julibilitv/jumedia-server:latest}
     container_name: jumedia
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${JUMEDIA_PORT:-8098}:8080"
     volumes:
       - ${JUMEDIA_HOST_DATA:-/data/jumedia}:/data
+      - web:/web:ro
     environment:
       JUMEDIA_ADMIN_USERNAME: ${JUMEDIA_ADMIN_USERNAME:-}
       JUMEDIA_ADMIN_PASSWORD: ${JUMEDIA_ADMIN_PASSWORD:-}
@@ -20,3 +32,6 @@ services:
       options:
         max-size: 10m
         max-file: "3"
+
+volumes:
+  web:
