@@ -133,7 +133,23 @@ func (s *Server) recoverLiveCaches(ctx context.Context) error {
 			}
 		}
 		for _, r := range rooms {
-			if r.Source == nil || r.Source.Type != "video" || r.Source.Cache != "" {
+			if r.Source == nil || r.Source.Type != "video" {
+				continue
+			}
+			if r.Source.Cache != "" {
+				if r.PendingStart {
+					// Read after recovery has checked the playlist: a cache that
+					// was ready may now be failed because its files are missing.
+					x, err := liveCacheByKey(ctx, tx, r.Source.Cache)
+					if err != nil {
+						return err
+					}
+					if x != nil && x.Status == "ready" {
+						if err := liveCacheStartPendingRoom(ctx, tx, r.RoomID, time.Now().Unix()); err != nil {
+							return err
+						}
+					}
+				}
 				continue
 			}
 			var page *store.Page
@@ -297,13 +313,20 @@ func (s *Server) finishLiveCache(ctx context.Context, x *liveCache, size int64) 
 			return e
 		}
 		for _, id := range ids {
-			if _, e = tx.ExecContext(ctx, "UPDATE rooms SET live_status=CASE WHEN banned=0 THEN 1 ELSE live_status END,live_time=CASE WHEN banned=0 THEN ? ELSE live_time END,online=CASE WHEN banned=0 AND online<1 THEN 1 ELSE online END,pending_start=0 WHERE room_id=? AND pending_start=1", now, id); e != nil {
+			if e = liveCacheStartPendingRoom(ctx, tx, id, now); e != nil {
 				return e
 			}
 		}
 		return nil
 	})
 }
+
+// Caller has verified that the room references a ready video cache in this transaction.
+func liveCacheStartPendingRoom(ctx context.Context, tx *db.Tx, roomID, now int64) error {
+	_, e := tx.ExecContext(ctx, "UPDATE rooms SET live_status=CASE WHEN banned=0 THEN 1 ELSE live_status END,live_time=CASE WHEN banned=0 THEN ? ELSE live_time END,online=CASE WHEN banned=0 AND online<1 THEN 1 ELSE online END,pending_start=0 WHERE room_id=? AND pending_start=1", now, roomID)
+	return e
+}
+
 func (s *Server) collectLiveCaches(ctx context.Context, now int64) error {
 	var removed []liveCache
 	e := s.Store.DB.WithTx(ctx, func(tx *db.Tx) error {
