@@ -105,7 +105,7 @@ func TestCommentModeration(t *testing.T) {
 			t.Fatalf("report resolution %s %v", status, err)
 		}
 		communityExec(t, s, "UPDATE settings SET value=? WHERE key='sensitiveWords'", `"ForbiddenWord"`)
-		assertCode(t, communityWrite(t, s, viewer, "/x/v2/reply/add", url.Values{"oid": {oid}, "message": {"has forbiddenword here"}}), -400)
+		assertCode(t, communityWrite(t, s, viewer, "/x/v2/reply/add", url.Values{"oid": {oid}, "message": {"has forbiddenword here"}}), 12016)
 		add(viewer, "ordinary https://example.test link", "0")
 	})
 }

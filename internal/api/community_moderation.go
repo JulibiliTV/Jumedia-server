@@ -154,7 +154,7 @@ func (s *Server) validateCommentText(c *Ctx, message string) error {
 	}
 	for _, word := range strings.Split(words, "\n") {
 		if word = Trim(word); word != "" && strings.Contains(strings.ToLower(message), strings.ToLower(word)) {
-			return Fail(-400, "评论包含不适宜内容，请修改后重试")
+			return Fail(12016, "评论内容包含敏感信息，请修改后重试")
 		}
 	}
 	return nil

@@ -228,6 +228,23 @@ go run ./cmd/jumedia
 
 ## 客户端
 
+### 发表评论
+
+`POST /x/v2/reply/add` 使用统一的 HTTP 200 JSON 信封（`code`、`message`、`ttl`、`data`）。支持 `type=1` 视频评论，必填 `oid`、`message`、登录会话与 `csrf`；楼中楼同时填写 `root` 和 `parent`，两者必须属于同一稿件及同一根评论。其他评论区类型返回 `12009`。
+
+成功时 `code=0`，`data` 包含 `success_action=0`、`success_toast="发送成功"`、`need_captcha=false`、`url=""`、`rpid/rpid_str`、`dialog/dialog_str`、`root/root_str`、`parent/parent_str`、`emote={}` 和 `reply`。暂不启用验证码；不返回需要验证码的挑战，也不提供付费评论功能。文字中的表情转义符按普通文本保留，`emote` 为空对象。
+
+| code | 条件 |
+| --- | --- |
+| -101 / -102 / -111 | 未登录 / 账号被封停 / CSRF 校验失败 |
+| -400 / -404 | 请求错误 / 稿件不存在或未发布 |
+| 12009 / 12025 / 12016 | 评论区类型错误 / 内容为空或超过 1000 个 UTF-16 单元 / 包含敏感词 |
+| 12006 / 12035 | 回复目标不存在或不属于指定楼层 / 被 UP 主拉黑 |
+| 12002 / 12003 | 站点关闭评论 / 站点禁止楼中楼回复 |
+| -509 / 12051 | 发言间隔过短 / 在同一位置重复发送相同内容 |
+
+站点设置中的 `commentEnabled`、`commentReplyEnabled` 默认开启。`commentMinInterval` 按账号限制发言间隔，`commentDuplicateWindow` 限制同一账号在同一稿件和楼层重复提交；单位为秒，范围 0–86400，默认 0（不限制），可在后台「站点设置 → 评论」修改。检查和评论写入使用同一事务；失败请求不增加评论计数。其他评论读取、删除和举报接口保留各自原有返回码。
+
 ### 评论举报与拉黑
 
 使用 Jumedia 接口协议，均通过当前登录账号的会话认证；写入需要 `csrf`。

@@ -51,6 +51,9 @@ func TestCommunityRouteContracts(t *testing.T) {
 					p = url.Values{}
 				}
 				p.Set("csrf", session.CSRF)
+				if tt.path == "/x/v2/reply/add" {
+					p.Set("type", "1")
+				}
 				v := post(t, s, tt.path, p, session)
 				assertCode(t, v, tt.code)
 				if tt.key != "" {
@@ -82,7 +85,7 @@ func TestCommunityWriteRollback(t *testing.T) {
 		}
 		// Missing references return business errors without changing IDs or counters.
 		v := communityWrite(t, s, session, "/x/v2/reply/add", url.Values{"oid": {fmt.Sprint(a.AID)}, "message": {"事务回滚"}, "parent": {"99999999"}})
-		communityFailure(t, v, 12022, "评论已被删除")
+		communityFailure(t, v, 12006, "没有该评论")
 		var after int64
 		if err := s.Store.DB.QueryRowContext(context.Background(), "SELECT value FROM ids WHERE name=?", "global").Scan(&after); err != nil {
 			t.Fatal(err)

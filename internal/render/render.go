@@ -326,5 +326,5 @@ func (r *Renderer) ReplyJSON(ctx context.Context, reply store.Reply, me int64, w
 		}
 		replies = append(replies, v)
 	}
-	return M{"rpid": reply.RPID, "rpid_str": strconv.FormatInt(reply.RPID, 10), "oid": reply.OID, "type": 1, "mid": reply.MID, "root": reply.Root, "parent": reply.Parent, "count": len(children), "rcount": len(children), "ctime": reply.Ctime, "like": len(reply.Likers), "action": action, "member": member, "content": M{"message": prefix + reply.Message, "members": []any{}, "pictures": []any{}}, "replies": replies, "up_action": M{"like": false, "reply": false}}, nil
+	return M{"rpid": reply.RPID, "rpid_str": strconv.FormatInt(reply.RPID, 10), "oid": reply.OID, "type": 1, "mid": reply.MID, "root": reply.Root, "root_str": strconv.FormatInt(reply.Root, 10), "parent": reply.Parent, "parent_str": strconv.FormatInt(reply.Parent, 10), "dialog": reply.Parent, "dialog_str": strconv.FormatInt(reply.Parent, 10), "state": 0, "attr": 0, "count": len(children), "rcount": len(children), "ctime": reply.Ctime, "like": len(reply.Likers), "action": action, "member": member, "content": M{"message": prefix + reply.Message, "members": []any{}, "pictures": []any{}}, "replies": replies, "up_action": M{"like": false, "reply": false}}, nil
 }

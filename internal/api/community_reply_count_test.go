@@ -90,8 +90,11 @@ func TestReplyCountCascade(t *testing.T) {
 		}
 		for _, path := range []string{"/x/v2/reply/del", "/x/admin/reply/delete"} {
 			root := replyCountAdd(t, s, admin, arcs[0].AID, 0)
-			child := replyCountAdd(t, s, admin, arcs[1].AID, root)
-			replyCountAdd(t, s, admin, arcs[2].AID, child)
+			child := replyCountAdd(t, s, admin, arcs[0].AID, root)
+			grandchild := replyCountAdd(t, s, admin, arcs[0].AID, root)
+			// Simulate legacy malformed rows; new submissions reject cross-archive threads.
+			communityExec(t, s, "UPDATE replies SET oid=? WHERE rpid=?", arcs[1].AID, child)
+			communityExec(t, s, "UPDATE replies SET oid=?,root=?,parent=? WHERE rpid=?", arcs[2].AID, child, child, grandchild)
 			assertCode(t, communityWrite(t, s, admin, path, url.Values{"rpid": {fmt.Sprint(root)}}), 0)
 			for i, a := range arcs {
 				replyCountCheck(t, s, a.AID, base[i])

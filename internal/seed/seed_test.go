@@ -29,7 +29,7 @@ func TestSeedContract(t *testing.T) {
 		counts["seq"] = 7017
 		counts["fan_medals"] = 17
 		counts["banners"] = 22
-		counts["settings"] = 29 // T24 retains four server runtime settings, dropping three Emby overrides.
+		counts["settings"] = 33 // Includes four comment policy settings.
 		check := func() {
 			t.Helper()
 			var mismatches, empty int

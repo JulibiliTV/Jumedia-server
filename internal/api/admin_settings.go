@@ -231,6 +231,9 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 	if err := s.validateLiveCacheSettings(c); err != nil {
 		return nil, err
 	}
+	if err := validateReplySettings(c); err != nil {
+		return nil, err
+	}
 	for _, setting := range []struct {
 		key, message string
 		max          float64

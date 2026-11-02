@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"sort"
-	"strconv"
 	"time"
 
 	"jumedia-server/internal/db"
@@ -107,9 +106,18 @@ func (s *Server) communityReplyChildren(c *Ctx) (any, error) {
 	return render.M{"page": render.M{"num": pn, "size": 20, "count": len(children)}, "root": v, "replies": replies}, nil
 }
 func (s *Server) communityReplyAdd(c *Ctx) (any, error) {
+	if c.Me != nil && c.Me.Status != 0 {
+		return nil, Fail(-102, "账号已被封停")
+	}
 	u, e := c.CSRF()
 	if e != nil {
 		return nil, e
+	}
+	if c.R.Method != "POST" {
+		return nil, Fail(-400, "请使用 POST")
+	}
+	if c.P["type"] != "1" {
+		return nil, Fail(12009, "评论主体的type不合法")
 	}
 	message := Trim(c.P["message"])
 	if message == "" || UTF16Length(message) > 1000 {
@@ -119,16 +127,19 @@ func (s *Server) communityReplyAdd(c *Ctx) (any, error) {
 		return nil, err
 	}
 	r := store.Reply{OID: ParseID(c.P["oid"]), MID: u.MID, Root: ParseID(c.P["root"]), Parent: ParseID(c.P["parent"]), Message: message, Ctime: time.Now().Unix()}
-	e = s.WriteTx(c, func(tx *db.Tx) error {
-		if err := RequireReference(c, tx, "SELECT COUNT(*) FROM archives WHERE aid=?", r.OID, -404, "啥都木有"); err != nil {
-			return err
+	for _, key := range []string{"root", "parent"} {
+		if value := c.P[key]; value != "" && value != "0" && ParseID(value) <= 0 {
+			return nil, Fail(12006, "没有该评论")
 		}
-		for _, id := range []int64{r.Root, r.Parent} {
-			if id != 0 {
-				if err := RequireReference(c, tx, "SELECT COUNT(*) FROM replies WHERE rpid=?", id, 12022, "评论已被删除"); err != nil {
-					return err
-				}
-			}
+	}
+	settings, e := s.Store.Settings(c.Context())
+	if e != nil {
+		return nil, e
+	}
+	e = s.WriteTx(c, func(tx *db.Tx) error {
+		r.Ctime = time.Now().Unix()
+		if err := replyAddPolicy(c, tx, r, settings); err != nil {
+			return err
 		}
 		var e error
 		r.RPID, e = store.NextID(c.Context(), tx)
@@ -147,7 +158,7 @@ func (s *Server) communityReplyAdd(c *Ctx) (any, error) {
 	if e != nil {
 		return nil, e
 	}
-	return render.M{"rpid": r.RPID, "rpid_str": strconv.FormatInt(r.RPID, 10), "success_toast": "发送成功", "reply": v}, nil
+	return replyAddResponse(r, v), nil
 }
 func (s *Server) communityReplyDelete(c *Ctx) (any, error) {
 	u, e := c.CSRF()

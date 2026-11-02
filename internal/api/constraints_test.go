@@ -23,10 +23,10 @@ func TestMissingReferencesReturnBusinessErrors(t *testing.T) {
 			code       int
 			message    string
 		}{
-			{"reply root", "/x/v2/reply/add", url.Values{"oid": {aid}, "root": {"99999999"}, "message": {"评论"}}, 12022, "评论已被删除"},
-			{"reply parent", "/x/v2/reply/add", url.Values{"oid": {aid}, "parent": {"99999999"}, "message": {"评论"}}, 12022, "评论已被删除"},
+			{"reply root", "/x/v2/reply/add", url.Values{"oid": {aid}, "root": {"99999999"}, "message": {"评论"}}, 12006, "没有该评论"},
+			{"reply parent", "/x/v2/reply/add", url.Values{"oid": {aid}, "parent": {"99999999"}, "message": {"评论"}}, 12006, "没有该评论"},
 			{"reply archive", "/x/v2/reply/add", url.Values{"oid": {"99999999"}, "message": {"评论"}}, -404, "啥都木有"},
-			{"reply fractional root", "/x/v2/reply/add", url.Values{"oid": {aid}, "root": {"1.5"}, "message": {"评论"}}, 12022, "评论已被删除"},
+			{"reply fractional root", "/x/v2/reply/add", url.Values{"oid": {aid}, "root": {"1.5"}, "message": {"评论"}}, 12006, "没有该评论"},
 			{"history episode", "/x/click-interface/web/heartbeat", url.Values{"aid": {fmt.Sprint(ep.AID)}, "sid": {fmt.Sprint(ep.SeasonID)}, "epid": {"99999999"}}, -404, "剧集不存在"},
 			{"history season", "/x/click-interface/web/heartbeat", url.Values{"aid": {fmt.Sprint(ep.AID)}, "sid": {"99999999"}, "epid": {fmt.Sprint(ep.EpID)}}, -404, "番剧不存在"},
 			{"history fractional episode", "/x/click-interface/web/heartbeat", url.Values{"aid": {aid}, "epid": {"1.5"}}, -404, "剧集不存在"},

@@ -28,6 +28,9 @@ func communityWrite(t *testing.T, s *Server, session *store.Session, path string
 	if p == nil {
 		p = url.Values{}
 	}
+	if path == "/x/v2/reply/add" && !p.Has("type") {
+		p.Set("type", "1")
+	}
 	p.Set("csrf", session.CSRF)
 	return post(t, s, path, p, session)
 }
@@ -160,7 +163,11 @@ func TestCommunityAuthentication(t *testing.T) {
 		}
 		communityExec(t, s, "UPDATE users SET status=1 WHERE mid=?", user.MID)
 		for _, path := range append(reads, writes...) {
-			communityFailure(t, get(t, s, path, user), -403, "账号已被封禁")
+			if path == "/x/v2/reply/add" {
+				communityFailure(t, get(t, s, path, user), -102, "账号已被封停")
+			} else {
+				communityFailure(t, get(t, s, path, user), -403, "账号已被封禁")
+			}
 		}
 	})
 }
