@@ -238,9 +238,6 @@ func discoverAbsoluteMedia(origin, media string) (string, error) {
 	if ds, item, source, mode, ok := emby.ParseDSRef(media); ok {
 		media = emby.DSPath(ds, item, source, mode)
 	}
-	if item, source, ok := emby.ParseRef(media); ok {
-		media = emby.MP4Path(item, source)
-	}
 	ref, err := url.Parse(media)
 	if err != nil {
 		return "", err

@@ -25,7 +25,9 @@ func TestDemoLiveStartupAndContracts(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				// Same ordering as cmd/jumedia startup, including the older media migration.
+				// Migrate fixture credentials/media before cache recovery, as startup does.
+				t30MigrateLiveFixture(t, s)
+				// Include the older media migration.
 				if err := seed.MigrateMedia(ctx, s.Store, testdata.Catalog()); err != nil {
 					t.Fatal(err)
 				}
@@ -120,6 +122,7 @@ func TestDemoLiveStartupAndContracts(t *testing.T) {
 
 func TestDemoLiveReadyCacheReuse(t *testing.T) {
 	testServers(t, func(t *testing.T, s *Server) {
+		t30MigrateLiveFixture(t, s)
 		ctx := t.Context()
 		if err := s.recoverLiveCaches(ctx); err != nil {
 			t.Fatal(err)

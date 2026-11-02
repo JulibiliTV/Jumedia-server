@@ -110,7 +110,9 @@ func TestDemoPackageImportAndReset(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := demoPackage(t)
-	importDemo := func() error { return s.DB.WithTx(ctx, func(tx *db.Tx) error { return seed.ImportTx(ctx, tx, p) }) }
+	importDemo := func() error {
+		return s.DB.WithTx(ctx, func(tx *db.Tx) error { return seed.ImportTx(ctx, tx, p, "test-ciphertext") })
+	}
 	if err := importDemo(); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +217,7 @@ func TestDemoPackageValidationAndRollback(t *testing.T) {
 	if _, err := s.DB.ExecContext(ctx, "CREATE TRIGGER fail_demo BEFORE INSERT ON archives BEGIN SELECT RAISE(ABORT, 'test rollback'); END"); err != nil {
 		t.Fatal(err)
 	}
-	err := s.DB.WithTx(ctx, func(tx *db.Tx) error { return seed.ImportTx(ctx, tx, demoPackage(t)) })
+	err := s.DB.WithTx(ctx, func(tx *db.Tx) error { return seed.ImportTx(ctx, tx, demoPackage(t), "test-ciphertext") })
 	if err == nil {
 		t.Fatal("expected failure")
 	}
@@ -226,7 +228,7 @@ func TestDemoPackageValidationAndRollback(t *testing.T) {
 	if err = store.InsertUser(ctx, s.DB, &store.User{MID: 42, Username: "ordinary", Role: "user"}); err != nil {
 		t.Fatal(err)
 	}
-	err = s.DB.WithTx(ctx, func(tx *db.Tx) error { return seed.ImportTx(ctx, tx, demoPackage(t)) })
+	err = s.DB.WithTx(ctx, func(tx *db.Tx) error { return seed.ImportTx(ctx, tx, demoPackage(t), "test-ciphertext") })
 	if err != seed.ErrNotInitial {
 		t.Fatal(err)
 	}

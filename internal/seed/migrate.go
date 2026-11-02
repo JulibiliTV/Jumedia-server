@@ -2,7 +2,9 @@ package seed
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -137,6 +139,14 @@ func MigrateMedia(ctx context.Context, s *store.Store, catalog emby.Catalog) err
 				}
 			}
 		}
+		sources, address, e := storedDemoSourcesTx(ctx, tx)
+		if e == nil {
+			return rewriteDemoSourceTx(ctx, tx, sources, address, catalog)
+		}
+		if !errors.Is(e, sql.ErrNoRows) {
+			return e
+		}
+
 		return nil
 	})
 }

@@ -82,18 +82,7 @@ func (l *liveAPI) loadPlaylist(c *Ctx, address string, maxAge time.Duration) (li
 		return livePlaylist{p, string(body), key, l.now()}, err
 	}
 	if u.Host == base.Host && u.Scheme == base.Scheme && strings.HasPrefix(u.Path, "/media/emby/") {
-		if u.Query().Has("ds") {
-			return empty, Fail(-400, "无法访问该地址（网络错误或源站未开放跨域）")
-		}
-		text, err := l.s.embyPlaylist(c.Context(), u.Path, u.Query().Get("source"), l.s.Origin(c.R))
-		if err != nil {
-			return empty, Fail(-400, "无法访问该地址（网络错误或源站未开放跨域）")
-		}
-		parsed, err := hls.ParsePlaylist(text, key)
-		if err != nil {
-			return empty, Fail(-400, err.Error())
-		}
-		return livePlaylist{parsed, text, key, l.now()}, nil
+		return empty, Fail(-400, "无法访问该地址（网络错误或源站未开放跨域）")
 	}
 	l.cacheMu.Lock()
 	cached, ok := l.cache[key]

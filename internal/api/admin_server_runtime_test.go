@@ -17,9 +17,12 @@ import (
 	"time"
 
 	"jumedia-server/internal/config"
+	"jumedia-server/internal/emby"
+	"jumedia-server/internal/seed"
+	"jumedia-server/internal/store"
 )
 
-func TestServerEmbyStartupOnly(t *testing.T) {
+func TestServerDemoDataSourceSettings(t *testing.T) {
 	serverRequireListener(t)
 	type loginRecord struct{ Username, Pw string }
 	var mu sync.Mutex
@@ -63,13 +66,38 @@ func TestServerEmbyStartupOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err = s.InitDemoMedia(t.Context()); err != nil {
+	if err = seed.Seed(t.Context(), s.Store); err != nil {
 		t.Fatal(err)
 	}
 	admin := login(t, s, "jumedia", "admin123")
+	sources, err := s.Store.ListDataSource(t.Context())
+	if err != nil || len(sources) == 0 {
+		t.Fatal(sources, err)
+	}
+	var ds *store.DataSource
+	for i := range sources {
+		if sources[i].MID == admin.MID {
+			ds = &sources[i]
+			break
+		}
+	}
+	if ds == nil {
+		t.Fatal("official user source missing")
+	}
+	if err = s.Store.SetSetting(t.Context(), "dataSourcePrivateNetwork", true); err != nil {
+		t.Fatal(err)
+	}
+	sourceClient := func() *emby.Client {
+		t.Helper()
+		client, err := s.sourceClient(t.Context(), ds)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return client
+	}
 	stream := func() {
 		t.Helper()
-		response, err := s.embyClient().RawStream(t.Context(), "demo", "src", "mkv", nil)
+		response, err := sourceClient().RawStream(t.Context(), "demo", "src", "mkv", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -78,16 +106,16 @@ func TestServerEmbyStartupOnly(t *testing.T) {
 	}
 	stream()
 	stream()
-	before := s.embyClient()
+	before := sourceClient()
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverEmbyUrl": {upstream.URL + "/emby/"}, "serverEmbyUsername": {"runtime-user"}, "serverEmbyPassword": {"runtime-password"}}), 0)
-	if s.embyClient() != before {
+	if sourceClient() != before {
 		t.Fatal("retired settings rebuilt the client")
 	}
 	stream()
 	stream()
-	before = s.embyClient()
+	before = sourceClient()
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"siteName": {"no rebuild"}, "serverEmbyPassword": {""}}), 0)
-	if s.embyClient() != before {
+	if sourceClient() != before {
 		t.Fatal("unrelated save discarded token")
 	}
 	stream()
@@ -102,12 +130,12 @@ func TestServerEmbyStartupOnly(t *testing.T) {
 	}
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {"https://reset.test"}, "serverFfmpeg": {"reset-tool"}, "serverEmbyUsername": {"reset-user"}}), 0)
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"reset": {"true"}}), 0)
-	cfg, _ := s.serverSnapshot()
-	if cfg.publicOrigin != "" || s.embyClient() == before || cfg.ffmpeg != s.runtime.startup.ffmpeg {
+	cfg := s.serverSnapshot()
+	if cfg.publicOrigin != "" || cfg.ffmpeg != s.runtime.startup.ffmpeg {
 		t.Fatal("reset did not restore boot configuration")
 	}
-	if _, err := s.embyClient().RawStream(t.Context(), "demo", "src", "mkv", nil); err == nil {
-		t.Fatal("reset retained demo connection")
+	if _, err := store.DataSourceByID(t.Context(), s.Store.DB, ds.ID); err == nil {
+		t.Fatal("reset retained source")
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -121,11 +149,11 @@ func TestServerSaveRollbackAndConcurrentReads(t *testing.T) {
 	t.Setenv("JUMEDIA_FFPROBE", "tool")
 	s := newTestServer(t)
 	admin := login(t, s, "jumedia", "admin123")
-	before, client := s.serverSnapshot()
+	before := s.serverSnapshot()
 	liveExec(t, s, "ALTER TABLE logs RENAME TO t23_logs")
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {"https://rollback.test"}, "serverEmbyUsername": {"rollback-user"}}), -500)
-	after, next := s.serverSnapshot()
-	if before != after || client != next {
+	after := s.serverSnapshot()
+	if before != after {
 		t.Fatal("rolled back settings were published")
 	}
 	settings, err := s.Store.Settings(t.Context())
@@ -142,10 +170,7 @@ func TestServerSaveRollbackAndConcurrentReads(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 1000; i++ {
-				cfg, client := s.serverSnapshot()
-				if client == nil {
-					t.Error("nil client")
-				}
+				cfg := s.serverSnapshot()
 				if cfg.ffmpeg != cfg.ffprobe {
 					t.Error("torn configuration")
 				}
@@ -162,7 +187,7 @@ func TestServerSaveRollbackAndConcurrentReads(t *testing.T) {
 		}(n)
 	}
 	wg.Wait()
-	cfg, _ := s.serverSnapshot()
+	cfg := s.serverSnapshot()
 	stored, err := s.Store.Settings(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -275,10 +300,10 @@ func TestServerRuntimeValuesAndReset(t *testing.T) {
 	s := New(base.Store, boot)
 	t.Cleanup(s.CloseDataSources)
 	admin := login(t, s, "jumedia", "admin123")
-	startup, oldClient := s.serverSnapshot()
+	startup := s.serverSnapshot()
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {"https://override.test"}, "serverEmbyUrl": {"https://override-emby.test"}, "serverEmbyUsername": {"override-user"}, "serverEmbyPassword": {"override-password"}, "serverFfmpeg": {"override-ffmpeg"}, "serverFfprobe": {"override-ffprobe"}, "serverVideoEncoder": {"h264_nvenc"}}), 0)
-	changed, newClient := s.serverSnapshot()
-	if changed.ffmpeg != "override-ffmpeg" || changed.ffprobe != "override-ffprobe" || changed.encoder != "h264_nvenc" || changed.publicOrigin != "https://override.test" || oldClient != newClient {
+	changed := s.serverSnapshot()
+	if changed.ffmpeg != "override-ffmpeg" || changed.ffprobe != "override-ffprobe" || changed.encoder != "h264_nvenc" || changed.publicOrigin != "https://override.test" {
 		t.Fatal("runtime overrides not applied")
 	}
 	if startup.ffmpeg != "startup-ffmpeg" || startup.encoder != "h264_qsv" {
@@ -286,19 +311,19 @@ func TestServerRuntimeValuesAndReset(t *testing.T) {
 	}
 	restarted := New(base.Store, boot)
 	t.Cleanup(restarted.CloseDataSources)
-	restored, _ := restarted.serverSnapshot()
+	restored := restarted.serverSnapshot()
 	if restored != changed {
 		t.Fatal("overrides not restored on restart")
 	}
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {""}, "serverEmbyUrl": {""}, "serverEmbyUsername": {""}, "serverEmbyPasswordClear": {"true"}, "serverFfmpeg": {""}, "serverFfprobe": {""}, "serverVideoEncoder": {""}}), 0)
-	fallback, fallbackClient := s.serverSnapshot()
-	if fallback != startup || fallbackClient != newClient {
+	fallback := s.serverSnapshot()
+	if fallback != startup {
 		t.Fatal("empty fields did not restore startup settings")
 	}
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverPublicOrigin": {"https://reset.test"}, "serverFfmpeg": {"reset-tool"}}), 0)
 	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"reset": {"true"}}), 0)
-	fallback, fallbackClient = s.serverSnapshot()
-	if fallback != startup || fallbackClient == oldClient {
+	fallback = s.serverSnapshot()
+	if fallback != startup {
 		t.Fatal("reset did not restore startup")
 	}
 }

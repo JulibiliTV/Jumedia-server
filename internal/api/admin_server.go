@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"jumedia-server/internal/config"
-	"jumedia-server/internal/emby"
 )
 
 type serverValues struct {
@@ -56,14 +55,12 @@ func (s *Server) applyServerSettings(settings map[string]any) {
 	r.current = next
 }
 
-func (s *Server) serverSnapshot() (serverValues, *emby.Client) {
+func (s *Server) serverSnapshot() serverValues {
 	r := s.runtime
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	// Demo media is refreshed after import/reset from persisted credentials.
-	return r.current, s.Emby
+	return r.current
 }
-func (s *Server) embyClient() *emby.Client { _, client := s.serverSnapshot(); return client }
 
 var serverCommand = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 

@@ -37,7 +37,7 @@ func (s *Server) InitLiveCaches(ctx context.Context) error {
 	if s.runtime.initErr != nil {
 		return s.runtime.initErr
 	}
-	cfg, _ := s.serverSnapshot()
+	cfg := s.serverSnapshot()
 	if !serverEncoderValid(cfg.encoder) {
 		return errors.New("不支持的 JUMEDIA_FFMPEG_VIDEO_ENCODER")
 	}
@@ -240,10 +240,10 @@ func (s *Server) runNextLiveCache(ctx context.Context) {
 	r.activeCancel = cancel
 	r.exited = make(chan struct{})
 	exited := r.exited
-	cfg, client := s.serverSnapshot()
+	cfg := s.serverSnapshot()
 	timeout := r.stallTimeout
 	r.mu.Unlock()
-	size, err := s.transcodeLiveCache(job, x, cfg, client, timeout)
+	size, err := s.transcodeLiveCache(job, x, cfg, timeout)
 	close(exited)
 	r.mu.Lock()
 	defer r.mu.Unlock()

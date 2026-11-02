@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"jumedia-server/internal/emby"
 	"jumedia-server/internal/hls"
 )
 
@@ -260,7 +259,7 @@ func TestLiveCacheToolsAndArguments(t *testing.T) {
 			t.Fatal("missing", want, joined)
 		}
 	}
-	// Demo emby refs use the configured client; the loopback endpoint alone receives credentials.
+	// Demo datasource refs use the normal client; only loopback receives credentials.
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "AuthenticateByName") {
 			fmt.Fprint(w, `{"AccessToken":"private-token"}`)
@@ -272,8 +271,10 @@ func TestLiveCacheToolsAndArguments(t *testing.T) {
 		http.ServeContent(w, r, "file.mkv", time.Time{}, strings.NewReader("0123456789"))
 	}))
 	defer upstream.Close()
-	s.Emby = emby.New(upstream.URL, "secret-user", "secret-password")
-	local, closeInput, e := s.liveCacheInput(context.Background(), "emby:demo:src")
+	ds := t30TestSource(t, s, upstream.URL, "secret-user", "secret-password")
+	ref := fmt.Sprintf("embyds:%d:demo:src:direct", ds.ID)
+	liveExec(t, s, "UPDATE archive_pages SET media=? WHERE cid=?", ref, p.CID)
+	local, closeInput, e := s.liveCacheInput(context.Background(), ref, p.AID, p.CID)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -299,6 +300,15 @@ func TestLiveCacheToolsAndArguments(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != 404 {
 		t.Fatal("unscoped proxy")
+	}
+	liveExec(t, s, "UPDATE archives SET state=-100 WHERE aid=?", p.AID)
+	res, e = http.Get(local)
+	if e != nil {
+		t.Fatal(e)
+	}
+	res.Body.Close()
+	if res.StatusCode != 404 {
+		t.Fatal("deleted original still accessible to transcode", res.StatusCode)
 	}
 	closeInput()
 	if res, e = http.Get(local); e == nil {

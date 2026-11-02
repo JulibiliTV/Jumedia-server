@@ -91,11 +91,16 @@ func TestAdminDemoImportContract(t *testing.T) {
 			t.Fatal("private demo settings leaked")
 		}
 	}
-	ciphertext, err := s.Store.Setting(ctx, "_demo_emby_password")
-	if err != nil || ciphertext == "fixture-password" || ciphertext == "" {
-		t.Fatal("password not encrypted", err)
+	sources, err := s.Store.ListDataSource(ctx)
+	if err != nil || len(sources) == 0 {
+		t.Fatal(sources, err)
 	}
-	plain, err := s.decryptPassword(ciphertext.(string))
+	t30AssertOwnerSources(t, s)
+	ciphertext := sources[0].PasswordEnc
+	if ciphertext == "fixture-password" || ciphertext == "" {
+		t.Fatal("password not encrypted")
+	}
+	plain, err := s.decryptPassword(ciphertext)
 	if err != nil || plain != "fixture-password" {
 		t.Fatal("password round trip", err)
 	}
@@ -128,8 +133,8 @@ func TestAdminDemoImportContract(t *testing.T) {
 	if err != nil || secret != "keep-chat-key" {
 		t.Fatal(secret, err)
 	}
-	if _, err = s.embyClient().RawStream(ctx, "demo", "src", "mp4", nil); err == nil {
-		t.Fatal("reset still has media")
+	if w := sourceHTTP(s, "/media/emby/demo.mp4?source=src"); w.Code != 404 {
+		t.Fatal("retired global media route", w.Code)
 	}
 	assertCode(t, demoUpload(t, s, session, session.CSRF, raw), 0)
 }
@@ -148,15 +153,15 @@ func TestDemoMediaPersistedConnection(t *testing.T) {
 	}
 	restarted := New(s.Store, s.Config)
 	t.Cleanup(restarted.CloseDataSources)
-	if err = restarted.InitDemoMedia(t.Context()); err != nil {
+	if err = restarted.InitDataSources(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	connection, err := restarted.demoConnection(t.Context())
-	if err != nil || connection.URL != "https://emby.example.test" || connection.Username != "demo" || connection.Password != "fixture-password" {
-		t.Fatal("persisted connection not loaded", err)
+	sources, err := restarted.Store.ListDataSource(t.Context())
+	if err != nil || len(sources) == 0 || sources[0].URL != "https://emby.example.test" || sources[0].Username != "demo" {
+		t.Fatal("persisted source", err)
 	}
-	if restarted.embyClient() == nil {
-		t.Fatal("missing media client")
+	plain, err := restarted.decryptPassword(sources[0].PasswordEnc)
+	if err != nil || plain != "fixture-password" {
+		t.Fatal("persisted credentials", err)
 	}
-
 }

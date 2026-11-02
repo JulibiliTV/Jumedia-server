@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-	"strings"
 	"time"
 
 	"jumedia-server/internal/db"
@@ -71,8 +70,8 @@ func ParsePackage(raw []byte) (DemoPackage, error) {
 	return p, nil
 }
 
-// ImportTx is atomic with the caller's encrypted connection settings.
-func ImportTx(ctx context.Context, tx *db.Tx, p DemoPackage) error {
+// ImportTx creates the system source and demo content atomically.
+func ImportTx(ctx context.Context, tx *db.Tx, p DemoPackage, encryptedPassword string) error {
 	if _, err := tx.ExecContext(ctx, "UPDATE ids SET value=value WHERE name=?", "global"); err != nil {
 		return err
 	}
@@ -118,10 +117,7 @@ func ImportTx(ctx context.Context, tx *db.Tx, p DemoPackage) error {
 	if err := store.SetSetting(ctx, tx, "_demo_catalog", p.Catalog); err != nil {
 		return err
 	}
-	if err := store.SetSetting(ctx, tx, "_demo_emby_url", strings.TrimRight(p.Emby.URL, "/")); err != nil {
-		return err
-	}
-	return store.SetSetting(ctx, tx, "_demo_emby_username", p.Emby.Username)
+	return createDemoSourceTx(ctx, tx, p, encryptedPassword)
 }
 
 func StoredCatalog(ctx context.Context, s *store.Store) (emby.Catalog, error) {

@@ -53,36 +53,31 @@ func liveCacheError(message string) string {
 }
 func liveRelayableMedia(media string) bool {
 	_, _, _, _, ok := emby.ParseDSRef(media)
-	if ok {
-		return true
-	}
-	_, _, ok = emby.ParseRef(media)
 	return ok
 }
-func (s *Server) liveCacheInput(ctx context.Context, media string) (string, func(), error) {
-	return s.liveCacheInputClient(ctx, media, s.embyClient())
-}
-func (s *Server) liveCacheInputClient(ctx context.Context, media string, client *emby.Client) (string, func(), error) {
-	item, source, ok := emby.ParseRef(media)
-	container := "mkv"
-	if ds, it, src, mode, valid := emby.ParseDSRef(media); valid {
-		record, e := store.DataSourceByID(ctx, s.Store.DB, ds)
-		if e != nil {
-			return "", nil, errors.New("数据源不存在")
-		}
-		client, e = s.sourceClient(ctx, record)
-		if e != nil {
-			return "", nil, errors.New("无法连接数据源")
-		}
-		item, source, ok = it, src, true
-		if strings.HasPrefix(mode, "raw-") {
-			container = strings.TrimPrefix(mode, "raw-")
-		} else if mode == "direct" {
-			container = "mp4"
-		}
-	}
-	if !ok {
+func (s *Server) liveCacheInput(ctx context.Context, media string, aid, cid int64) (string, func(), error) {
+	ds, item, source, mode, ok := emby.ParseDSRef(media)
+	if !ok || aid <= 0 || cid <= 0 {
 		return "", nil, errors.New("视频原始文件不存在")
+	}
+	allowed := func(ctx context.Context) bool {
+		ok, err := s.sourceOriginalMediaAllowed(ctx, ds, item, source, mode, aid, cid)
+		return err == nil && ok
+	}
+	if !allowed(ctx) {
+		return "", nil, errors.New("视频原始文件不存在")
+	}
+	record, e := store.DataSourceByID(ctx, s.Store.DB, ds)
+	if e != nil {
+		return "", nil, errors.New("数据源不存在")
+	}
+	client, e := s.sourceClient(ctx, record)
+	if e != nil {
+		return "", nil, errors.New("无法连接数据源")
+	}
+	container := "mp4"
+	if strings.HasPrefix(mode, "raw-") {
+		container = strings.TrimPrefix(mode, "raw-")
 	}
 	token := make([]byte, 24)
 	if _, e := rand.Read(token); e != nil {
@@ -95,6 +90,15 @@ func (s *Server) liveCacheInputClient(ctx context.Context, media string, client 
 	}
 	proxy := &http.Server{ReadHeaderTimeout: 10 * time.Second, BaseContext: func(net.Listener) context.Context { return ctx }, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != path || (r.Method != "GET" && r.Method != "HEAD") {
+			http.NotFound(w, r)
+			return
+		}
+		// ffprobe/ffmpeg may reconnect after the page/source has been removed.
+		if !allowed(r.Context()) {
+			http.NotFound(w, r)
+			return
+		}
+		if _, err := store.DataSourceByID(r.Context(), s.Store.DB, ds); err != nil {
 			http.NotFound(w, r)
 			return
 		}
@@ -235,7 +239,7 @@ func (w *liveCacheProgress) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
-func (s *Server) transcodeLiveCache(ctx context.Context, x *liveCache, cfg serverValues, client *emby.Client, stallTimeout time.Duration) (int64, error) {
+func (s *Server) transcodeLiveCache(ctx context.Context, x *liveCache, cfg serverValues, stallTimeout time.Duration) (int64, error) {
 	binary, e := exec.LookPath(cfg.ffmpeg)
 	if e != nil {
 		return 0, errors.New("服务器未安装 ffmpeg")
@@ -253,7 +257,7 @@ func (s *Server) transcodeLiveCache(ctx context.Context, x *liveCache, cfg serve
 	if e = os.MkdirAll(x.Dir+".tmp", 0755); e != nil {
 		return 0, e
 	}
-	input, closeInput, e := s.liveCacheInputClient(ctx, x.Media, client)
+	input, closeInput, e := s.liveCacheInput(ctx, x.Media, x.AID, x.CID)
 	if e != nil {
 		return 0, e
 	}

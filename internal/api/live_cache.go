@@ -12,9 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 	"time"
 
 	"jumedia-server/internal/db"
+	"jumedia-server/internal/emby"
 	"jumedia-server/internal/store"
 )
 
@@ -125,6 +128,12 @@ func (s *Server) liveCacheEnsure(ctx context.Context, q db.Querier, p store.Page
 	if e != nil {
 		return nil, e
 	}
+	if x == nil {
+		x, e = demoSharedReadyCache(ctx, q, p.Media, height)
+		if e != nil {
+			return nil, e
+		}
+	}
 	if live && liveCacheNotReady(x) != "" {
 		return nil, Fail(-400, "直播中只能切换到已完成转码缓存的视频，请先下播或等待转码完成")
 	}
@@ -141,6 +150,74 @@ func (s *Server) liveCacheEnsure(ctx context.Context, q db.Querier, p store.Page
 	_, e = q.ExecContext(ctx, "INSERT INTO live_caches ("+liveCacheColumns+") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", x.Key, x.Media, x.Height, x.AID, x.CID, x.Duration, x.Status, 0, "", 0, x.Dir, now, now, 0, 0)
 	return x, e
 }
+
+// Owner-scoped demo refs can point to the same original file. Reuse a ready
+// cache only while both imported demo sources still have identical credentials;
+// editing a user's connection naturally stops sharing with other users.
+func demoSharedReadyCache(ctx context.Context, q db.Querier, media string, height int) (*liveCache, error) {
+	ds, item, source, mode, ok := emby.ParseDSRef(media)
+	if !ok {
+		return nil, nil
+	}
+	var raw string
+	err := q.QueryRowContext(ctx, "SELECT value FROM settings WHERE key=?", "_demo_datasource_ids").Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var ids []int64
+	if err = json.Unmarshal([]byte(raw), &ids); err != nil {
+		return nil, err
+	}
+	if !slices.Contains(ids, ds) {
+		return nil, nil
+	}
+	own, err := store.DataSourceByID(ctx, q, ds)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	rows, err := q.QueryContext(ctx, "SELECT "+liveCacheColumns+" FROM live_caches WHERE height=? AND status=? ORDER BY ctime,key", height, "ready")
+	if err != nil {
+		return nil, err
+	}
+	candidates := []*liveCache{}
+	for rows.Next() {
+		x, e := liveCacheScan(rows)
+		if e != nil {
+			rows.Close()
+			return nil, e
+		}
+		other, it, src, m, valid := emby.ParseDSRef(x.Media)
+		if valid && slices.Contains(ids, other) && it == item && src == source && m == mode {
+			candidates = append(candidates, x)
+		}
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	for _, x := range candidates {
+		id, _, _, _, _ := emby.ParseDSRef(x.Media)
+		other, err := store.DataSourceByID(ctx, q, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimRight(own.URL, "/") == strings.TrimRight(other.URL, "/") && own.Username == other.Username && own.PasswordEnc == other.PasswordEnc {
+			return x, nil
+		}
+	}
+	return nil, nil
+}
+
 func liveCacheRetry(ctx context.Context, q db.Querier, x *liveCache) error {
 	if x.Status != "failed" {
 		return nil

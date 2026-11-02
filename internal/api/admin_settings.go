@@ -217,9 +217,6 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = s.InitDemoMedia(c.Context()); err != nil {
-			return nil, err
-		}
 		s.applyServerSettings(nil)
 		if _, err = s.clearImageCache(imageDir); err != nil {
 			return nil, err

@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"jumedia-server/internal/config"
-	"jumedia-server/internal/emby"
 	"jumedia-server/internal/render"
 	"jumedia-server/internal/store"
 )
@@ -26,7 +25,6 @@ type Server struct {
 	liveCaches *liveCacheRuntime
 	sources    *sourceRuntime
 	liveChat   *liveChatHub
-	Emby       *emby.Client
 	Store      *store.Store
 	Config     config.Config
 	Render     *render.Renderer
@@ -48,13 +46,13 @@ func (c *Ctx) Context() context.Context { return c.R.Context() }
 type Handler func(*Ctx) (any, error)
 
 func New(s *store.Store, cfg config.Config) *Server {
-	srv := &Server{Store: s, Config: cfg, Render: render.New(s), Mux: http.NewServeMux(), Logger: slog.Default(), Emby: emby.New("", "", "")}
+	srv := &Server{Store: s, Config: cfg, Render: render.New(s), Mux: http.NewServeMux(), Logger: slog.Default()}
 	srv.liveCaches = newLiveCacheRuntime()
 	srv.initServerSettings()
 	srv.registerLiveCaches()
 	srv.sources = newSourceRuntime()
 	srv.registerDataSources()
-	srv.registerEmby()
+	srv.registerSourceMedia()
 	srv.registerFoundation()
 	srv.registerBPlan()
 	srv.registerAccount()
@@ -169,7 +167,7 @@ func (s *Server) handle(path string, h Handler) {
 }
 func (s *Server) Origin(r *http.Request) string {
 	if s.runtime != nil {
-		cfg, _ := s.serverSnapshot()
+		cfg := s.serverSnapshot()
 		if cfg.publicOrigin != "" {
 			return strings.TrimRight(cfg.publicOrigin, "/")
 		}

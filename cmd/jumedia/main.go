@@ -58,9 +58,6 @@ func run() error {
 		return err
 	}
 	defer handler.CloseDataSources()
-	if err = handler.InitDemoMedia(ctx); err != nil {
-		return err
-	}
 	if len(args) == 1 && args[0] == "reset" {
 		if err = handler.ResetApplication(ctx); err != nil {
 			return err

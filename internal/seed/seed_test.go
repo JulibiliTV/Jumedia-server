@@ -84,6 +84,16 @@ func TestSeedContract(t *testing.T) {
 			t.Fatal(err)
 		}
 		check()
+		// The fixed-ID fixture predates system demo sources. Upgrade it through
+		// the production migration before asserting the unchanged 46-message behavior.
+		for k, v := range map[string]any{"officialMid": int64(1), "_demo_emby_url": "https://fixture.test", "_demo_emby_username": "fixture", "_demo_catalog": testdata.Catalog()} {
+			if err = s.SetSetting(ctx, k, v); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err = seed.Seed(ctx, s); err != nil {
+			t.Fatal(err)
+		}
 		if err = seed.SeedDanmaku(ctx, s, 50001, a.Pages[0].Duration); err != nil {
 			t.Fatal(err)
 		}

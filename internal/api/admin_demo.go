@@ -6,10 +6,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"jumedia-server/internal/db"
-	"jumedia-server/internal/emby"
 	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 )
@@ -57,40 +55,13 @@ func (s *Server) ImportDemo(ctx context.Context, p seed.DemoPackage) error {
 	s.liveCaches.mu.Lock()
 	defer s.liveCaches.mu.Unlock()
 	err = s.Store.DB.WithTx(ctx, func(tx *db.Tx) error {
-		if err := seed.ImportTx(ctx, tx, p); err != nil {
-			return err
-		}
-		if err := store.SetSetting(ctx, tx, "_demo_emby_password", password); err != nil {
+		if err := seed.ImportTx(ctx, tx, p, password); err != nil {
 			return err
 		}
 		return s.prepareDemoCachesTx(ctx, tx)
 	})
 	if err != nil {
 		return err
-	}
-	if err = s.InitDemoMedia(ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-// InitDemoMedia publishes only committed, persisted credentials. Tokens never
-// leave the proxy; imported passwords use the existing datasource AES-GCM key.
-func (s *Server) InitDemoMedia(ctx context.Context) error {
-	if err := s.InitDataSources(ctx); err != nil {
-		return err
-	}
-	connection, err := s.demoConnection(ctx)
-	if err != nil {
-		return err
-	}
-	client := emby.New(connection.URL, connection.Username, connection.Password)
-	s.runtime.mu.Lock()
-	old := s.Emby
-	s.Emby = client
-	s.runtime.mu.Unlock()
-	if old != nil {
-		old.Close()
 	}
 	return nil
 }
@@ -100,19 +71,6 @@ func (s *Server) ResetApplication(ctx context.Context) error {
 	r, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost/x/admin/settings/save", nil)
 	_, err := s.adminSettingsSave(&Ctx{R: r, P: map[string]string{"reset": "true"}, Server: s})
 	return err
-}
-
-func (s *Server) demoConnection(ctx context.Context) (seed.DemoConnection, error) {
-	var c seed.DemoConnection
-	settings, err := s.Store.Settings(ctx)
-	if err != nil {
-		return c, err
-	}
-	value := func(k string) string { v, _ := settings[k].(string); return v }
-	c.URL = strings.TrimRight(value("_demo_emby_url"), "/")
-	c.Username = value("_demo_emby_username")
-	c.Password, err = s.decryptPassword(value("_demo_emby_password"))
-	return c, err
 }
 
 // Imported demo video rooms join the same transaction as their content. The

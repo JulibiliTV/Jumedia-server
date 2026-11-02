@@ -3,8 +3,12 @@ package seed
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"time"
 
@@ -345,14 +349,41 @@ func GenerateDemoTx(ctx context.Context, tx *db.Tx, t0 int64, catalog emby.Catal
 // SeedDanmaku generates a CID only once, transactionally, like db.ts.
 func SeedDanmaku(ctx context.Context, s *store.Store, cid int64, duration int) error {
 	return s.DB.WithTx(ctx, func(tx *db.Tx) error {
-		var n int
-		if err := tx.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM archive_pages WHERE cid=? AND media LIKE 'emby:%') + (SELECT COUNT(*) FROM episodes WHERE cid=? AND media LIKE 'emby:%')", cid, cid).Scan(&n); err != nil {
-			return err
-		}
-		if n == 0 {
+		var raw string
+		err := tx.QueryRowContext(ctx, "SELECT value FROM settings WHERE key=?", "_demo_datasource_ids").Scan(&raw)
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
-		rows, err := tx.QueryContext(ctx, "SELECT mid FROM users WHERE role=? ORDER BY mid", "user")
+		if err != nil {
+			return err
+		}
+		var sources []int64
+		if err = json.Unmarshal([]byte(raw), &sources); err != nil {
+			return err
+		}
+		rows, err := tx.QueryContext(ctx, "SELECT media FROM archive_pages WHERE cid=? UNION ALL SELECT media FROM episodes WHERE cid=?", cid, cid)
+		if err != nil {
+			return err
+		}
+		demo := false
+		for rows.Next() {
+			var media string
+			if err = rows.Scan(&media); err != nil {
+				rows.Close()
+				return err
+			}
+			id, _, _, _, ok := emby.ParseDSRef(media)
+			demo = demo || ok && slices.Contains(sources, id)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		if !demo {
+			return nil
+		}
+		rows, err = tx.QueryContext(ctx, "SELECT mid FROM users WHERE role=? ORDER BY mid", "user")
 		if err != nil {
 			return err
 		}

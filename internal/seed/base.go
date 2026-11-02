@@ -116,13 +116,35 @@ func BaseTx(ctx context.Context, tx *db.Tx) error {
 			return err
 		}
 	}
+	// Migration 002 historically defaulted officialMid to 1 even in empty
+	// databases. Repair only a missing owner before attaching system sources.
+	var officialRaw string
+	if err := tx.QueryRowContext(ctx, "SELECT value FROM settings WHERE key=?", "officialMid").Scan(&officialRaw); err != nil {
+		return err
+	}
+	var configured int64
+	if err := json.Unmarshal([]byte(officialRaw), &configured); err != nil {
+		return err
+	}
+	var ownerCount int
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE mid=?", configured).Scan(&ownerCount); err != nil {
+		return err
+	}
+	if ownerCount == 0 && configured != official {
+		if err := store.SetSetting(ctx, tx, "officialMid", official); err != nil {
+			return err
+		}
+	}
 	if _, err := tx.ExecContext(ctx, "INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING", "sensitiveWords", `"加微信\n加V\n代刷\n免费领取\n私聊我\n刷粉"`); err != nil {
 		return err
 	}
 	if err := seedServiceSettings(ctx, tx); err != nil {
 		return err
 	}
-	return seedServerSettings(ctx, tx)
+	if err := seedServerSettings(ctx, tx); err != nil {
+		return err
+	}
+	return migrateDemoSourceTx(ctx, tx)
 }
 
 // Only administrators survive a reset. Keep their rows and signing identity intact.

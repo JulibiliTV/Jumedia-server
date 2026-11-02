@@ -19,6 +19,11 @@ const cacheUpdate = "/xlive/app-blink/v1/streamSource/update"
 
 func cacheSetup(t *testing.T, s *Server) (*store.Session, store.Page, int64) {
 	t.Helper()
+	t30MigrateLiveFixture(t, s)
+	// Match main's startup order: initialize once before cancellable worker jobs.
+	if err := s.InitDataSources(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	// These tests schedule their own jobs. Keep the two fresh demo sources
 	// from adding unrelated worker jobs; live_demo_test covers demo startup.
 	liveExec(t, s, "UPDATE rooms SET source=?,live_status=0,pending_start=0 WHERE room_id IN (?,?)", `{"type":"push","url":"","loop":true}`, 21000, 21018)
