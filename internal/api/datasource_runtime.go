@@ -121,6 +121,12 @@ func (s *Server) InitDataSources(ctx context.Context) error {
 			r.err = e
 			return
 		}
+		if _, e = s.Store.DB.ExecContext(ctx, "UPDATE dandanplay_sync SET status='pending' WHERE status='fetching'"); e != nil {
+			r.err = e
+			return
+		}
+		r.wg.Add(1)
+		go func() { defer r.wg.Done(); s.runDandanplay(r.ctx) }()
 		r.wg.Add(1)
 		go func() {
 			defer r.wg.Done()

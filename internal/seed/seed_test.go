@@ -29,7 +29,7 @@ func TestSeedContract(t *testing.T) {
 		counts["seq"] = 7017
 		counts["fan_medals"] = 17
 		counts["banners"] = 22
-		counts["settings"] = 33 // Includes four comment policy settings.
+		counts["settings"] = 36 // Includes comment policy and external danmaku settings.
 		check := func() {
 			t.Helper()
 			var mismatches, empty int

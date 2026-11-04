@@ -96,13 +96,20 @@ type sourceMirror struct {
 	meta           store.ArchiveMeta
 	pages          []store.Page
 	ctime, pubdate int64
+	filenames      map[string]string
 }
 
 func mirrorSource(ctx context.Context, client interface {
 	Episodes(context.Context, string) ([]emby.Item, error)
 }, ds *store.DataSource, regions []store.Region, lib store.DataSourceLibrary, item emby.Item) (*sourceMirror, error) {
 	pages := []store.Page{}
+	filenames := map[string]string{}
 	page := func(e emby.Item, part string) store.Page {
+		filename := dandanplayTitle(item.Name)
+		if item.Type == "Series" {
+			filename += fmt.Sprintf(".S%02dE%02d", sourceSeason(e), e.IndexNumber)
+		}
+		filenames[e.ID] = filename
 		return store.Page{Part: sourceClip(part, 80), Duration: max(1, int(math.Round(float64(e.RunTimeTicks)/1e7))), Media: emby.DSRef(ds.ID, e.ID, e.MediaSources[0])}
 	}
 	if item.Type == "Series" {
@@ -158,7 +165,7 @@ func mirrorSource(ctx context.Context, client interface {
 	if pub == 0 {
 		pub = ctime
 	}
-	return &sourceMirror{item.ID, store.ArchiveMeta{Title: sourceClip(item.Name, 80), Desc: sourceClip(item.Overview, 2000), TID: autoRegion(regions, lib, item.Genres), Tag: strings.Join(tags, ","), Pic: sourceItemImage(ds.ID, item)}, pages, ctime, pub}, nil
+	return &sourceMirror{item.ID, store.ArchiveMeta{Title: sourceClip(item.Name, 80), Desc: sourceClip(item.Overview, 2000), TID: autoRegion(regions, lib, item.Genres), Tag: strings.Join(tags, ","), Pic: sourceItemImage(ds.ID, item)}, pages, ctime, pub, filenames}, nil
 }
 func applyArchiveMeta(a *store.Archive, m store.ArchiveMeta, fields []string) {
 	for _, f := range fields {
@@ -317,7 +324,7 @@ func (s *Server) syncDataSource(ctx context.Context, ds *store.DataSource, setti
 						continue
 					}
 					itemsSeen[result.item] = true
-					aid, e := saveSourceSyncArchive(ctx, tx, ds, lib, result, audit, seen)
+					aid, e := saveSourceSyncArchive(ctx, tx, ds, lib, result, audit, seen, Truthy(settings["dandanplayEnabled"]))
 					if e != nil {
 						return e
 					}
@@ -430,7 +437,7 @@ func (s *Server) syncDataSource(ctx context.Context, ds *store.DataSource, setti
 	return len(seen), nil
 }
 
-func saveSourceSyncArchive(ctx context.Context, tx *db.Tx, ds *store.DataSource, lib *store.DataSourceLibrary, result sourceSyncMirror, audit bool, seen map[int64]bool) (int64, error) {
+func saveSourceSyncArchive(ctx context.Context, tx *db.Tx, ds *store.DataSource, lib *store.DataSourceLibrary, result sourceSyncMirror, audit bool, seen map[int64]bool, syncDanmaku bool) (int64, error) {
 	m := result.mirror
 	if m == nil && result.err == nil {
 		return 0, nil
@@ -507,6 +514,14 @@ func saveSourceSyncArchive(ctx context.Context, tx *db.Tx, ds *store.DataSource,
 		if e = store.InsertPage(ctx, tx, &p); e != nil {
 			return 0, e
 		}
+		if syncDanmaku {
+			if e = queueDandanplay(ctx, tx, p, m.filenames[sourceItemOf(p.Media)]); e != nil {
+				return 0, e
+			}
+		}
+	}
+	if e = pruneDandanplay(ctx, tx, aid); e != nil {
+		return 0, e
 	}
 	return aid, nil
 }

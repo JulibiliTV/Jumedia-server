@@ -300,13 +300,13 @@ type sourceSyncItems struct {
 
 func (c *sourceSyncClient) listPage(ctx context.Context, library string, start int) (sourceSyncItems, error) {
 	var page sourceSyncItems
-	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {"Overview,Genres,PremiereDate,DateCreated,MediaSources,RunTimeTicks"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(sourceSyncPage)}}
+	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {"Path,Overview,Genres,PremiereDate,DateCreated,MediaSources,RunTimeTicks"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(sourceSyncPage)}}
 	err := c.get(ctx, func(user string) string { return "/Users/" + url.PathEscape(user) + "/Items" }, q, &page)
 	return page, err
 }
 func (c *sourceSyncClient) Episodes(ctx context.Context, id string) ([]emby.Item, error) {
 	var result struct{ Items []emby.Item }
-	q := url.Values{"Fields": {"Overview,MediaSources,PremiereDate,DateCreated,RunTimeTicks"}}
+	q := url.Values{"Fields": {"Path,Overview,MediaSources,PremiereDate,DateCreated,RunTimeTicks"}}
 	err := c.get(ctx, func(user string) string { q.Set("UserId", user); return "/Shows/" + url.PathEscape(id) + "/Episodes" }, q, &result)
 	return result.Items, err
 }

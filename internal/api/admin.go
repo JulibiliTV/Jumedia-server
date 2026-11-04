@@ -13,7 +13,8 @@ func (s *Server) registerAdmin() {
 	routes := map[string]Handler{
 		"dashboard": s.adminDashboard, "users": s.adminUsers, "user/update": s.adminUserUpdate,
 		"archives": s.adminArchives, "archive/audit": s.adminArchiveAudit, "archive/delete": s.adminArchiveDelete,
-		"seasons": s.adminSeasons, "season/save": s.adminSeasonSave, "season/delete": s.adminSeasonDelete,
+		"archive/danmaku": s.adminArchiveDanmaku,
+		"seasons":         s.adminSeasons, "season/save": s.adminSeasonSave, "season/delete": s.adminSeasonDelete,
 		"live/rooms": s.adminRooms, "live/room/ban": s.adminRoomBan,
 		"replies": s.adminReplies, "reply/delete": s.adminReplyDelete, "danmaku": s.adminDanmaku, "danmaku/delete": s.adminDanmakuDelete,
 		"reply/report/dismiss": s.adminDismissCommentReports,

@@ -16,6 +16,13 @@ import (
 
 func (s *Server) communityDMSegment(c *Ctx) (any, error) {
 	cid := ParseID(c.P["oid"])
+	pending, err := s.requestDandanplay(c.Context(), cid)
+	if err != nil {
+		s.Logger.Warn("danmaku on-demand request failed", "error", err)
+	}
+	c.W.Header().Set("Cache-Control", "no-store")
+	c.W.Header().Set("Access-Control-Expose-Headers", "X-Jumedia-Danmaku-Pending")
+	c.W.Header().Set("X-Jumedia-Danmaku-Pending", strconv.FormatBool(pending))
 	if e := s.communitySeedDanmaku(c, cid); e != nil {
 		return nil, e
 	}
@@ -23,6 +30,11 @@ func (s *Server) communityDMSegment(c *Ctx) (any, error) {
 	if e != nil {
 		return nil, e
 	}
+	external, e := s.Store.DandanplayComments(c.Context(), cid)
+	if e != nil {
+		return nil, e
+	}
+	rows = append(rows, external...)
 	return Bytes(dm.Segment(rows, cid, int(Int(c.P["segment_index"], 1))), "application/octet-stream"), nil
 }
 func (s *Server) communitySeedDanmaku(c *Ctx, cid int64) error {

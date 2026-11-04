@@ -265,7 +265,16 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	secret, err := s.dandanplayInput(c, settings)
+	if err != nil {
+		return nil, err
+	}
 	result, err := s.adminWrite(c, "修改站点设置", "", func(tx *db.Tx) error {
+		if secret != serviceString(settings[dandanplaySecretKey]) {
+			if err := store.SetSetting(c.Context(), tx, dandanplaySecretKey, secret); err != nil {
+				return err
+			}
+		}
 		if v, ok := c.P["officialMid"]; ok {
 			var n int
 			if err := tx.QueryRowContext(c.Context(), "SELECT COUNT(*) FROM users WHERE mid=?", ParseGoID(v)).Scan(&n); err != nil {
@@ -283,7 +292,7 @@ func (s *Server) adminSettingsSave(c *Ctx) (any, error) {
 		}
 		for k, v := range c.P {
 			cur, ok := settings[k]
-			if !ok || (strings.HasPrefix(k, "serverEmby") || strings.HasPrefix(k, "_demo_")) || k == liveChatSecretKey || k == "csrf" || k == "biliCSRF" || k == "serviceMtime" {
+			if !ok || (strings.HasPrefix(k, "serverEmby") || strings.HasPrefix(k, "_demo_")) || k == dandanplaySecretKey || k == liveChatSecretKey || k == "csrf" || k == "biliCSRF" || k == "serviceMtime" {
 				continue
 			}
 			var value any = v

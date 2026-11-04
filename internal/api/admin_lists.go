@@ -84,6 +84,7 @@ func (s *Server) adminArchives(c *Ctx) (any, error) {
 			return nil, e
 		}
 		v["reason"] = a.Reason
+		v["origin"] = a.Origin
 		if len(a.Pages) > 0 {
 			v["media"] = a.Pages[0].Media
 		}
@@ -325,6 +326,8 @@ func (s *Server) adminSettings(c *Ctx) (any, error) {
 		return nil, err
 	}
 	delete(settings, liveChatSecretKey)
+	settings["dandanplayHasSecret"] = serviceString(settings[dandanplaySecretKey]) != ""
+	delete(settings, dandanplaySecretKey)
 	for key := range settings {
 		if strings.HasPrefix(key, "serverEmby") || strings.HasPrefix(key, "_demo_") {
 			delete(settings, key)

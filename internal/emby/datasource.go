@@ -167,9 +167,11 @@ func (c *Client) Libraries(ctx context.Context) ([]Library, error) {
 type MediaStream struct{ Type, Codec string }
 type MediaSource struct {
 	ID, Container string
+	Path          string
 	MediaStreams  []MediaStream
 }
 type Item struct {
+	Path                                                              string
 	ID, Name, Type, Overview, PremiereDate, DateCreated, LocationType string
 	Genres                                                            []string
 	RunTimeTicks                                                      int64
@@ -263,7 +265,7 @@ func (c *Client) Episodes(ctx context.Context, id string) ([]Item, error) {
 		return nil, err
 	}
 	var page struct{ Items []Item }
-	err = c.JSON(ctx, "/Shows/"+url.PathEscape(id)+"/Episodes", url.Values{"UserId": {user}, "Fields": {"Overview,MediaSources,PremiereDate,DateCreated,RunTimeTicks"}}, &page)
+	err = c.JSON(ctx, "/Shows/"+url.PathEscape(id)+"/Episodes", url.Values{"UserId": {user}, "Fields": {"Path,Overview,MediaSources,PremiereDate,DateCreated,RunTimeTicks"}}, &page)
 	return page.Items, err
 }
 func (c *Client) Image(ctx context.Context, item, kind, tag string) (*http.Response, error) {

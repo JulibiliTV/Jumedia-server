@@ -107,6 +107,9 @@ func BaseTx(ctx context.Context, tx *db.Tx) error {
 		return err
 	}
 	settings := map[string]any{"commentEnabled": true, "commentReplyEnabled": true, "commentMinInterval": 0, "commentDuplicateWindow": 0, "siteName": "Jumedia", "allowRegister": true, "auditRequired": true, "maxUploadMB": 2048, "announcement": "欢迎来到 Jumedia 在线媒体平台。", "allowGuestPlay": true, "defaultQuality": 80, "userDataSources": true, "dataSourcePrivateNetwork": false, "dataSourceSyncHours": 6, "dataSourceSyncRate": 5, "dataSourceSyncConcurrency": 2, "officialMid": official, "liveCacheDir": "", "liveTranscodeHeight": 1080, "imageCacheEnabled": true, "imageCacheDir": "", "imageCacheMaxMB": 1024}
+	settings["dandanplayEnabled"] = false
+	settings["dandanplayApi"] = "https://api.dandanplay.net"
+	settings["dandanplayAppId"] = ""
 	for k, v := range settings {
 		raw, err := json.Marshal(v)
 		if err != nil {
