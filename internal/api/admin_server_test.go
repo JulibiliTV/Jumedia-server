@@ -152,7 +152,7 @@ func TestServerStartupPermissionsAndRedaction(t *testing.T) {
 	data, w := request(t, s, http.MethodGet, "/x/admin/server", nil, admin)
 	v := adminTestData(t, data)
 	startup := v["startup"].(map[string]any)
-	if !reflect.DeepEqual(startup, map[string]any{"publicOrigin": cfg.PublicOrigin, "ffmpeg": "ffmpeg", "ffprobe": "ffprobe", "videoEncoder": "libx264"}) {
+	if !reflect.DeepEqual(startup, map[string]any{"publicOrigin": cfg.PublicOrigin, "ffmpeg": "ffmpeg", "ffprobe": "ffprobe", "videoEncoder": "auto"}) {
 		t.Fatal(startup)
 	}
 	boot := v["boot"].([]any)
@@ -173,6 +173,25 @@ func TestServerStartupPermissionsAndRedaction(t *testing.T) {
 		if strings.Contains(responses, secret) {
 			t.Fatalf("leaked %s", secret)
 		}
+	}
+}
+
+func TestServerHardwareEncoderSettings(t *testing.T) {
+	t.Setenv("JUMEDIA_FFMPEG_VIDEO_ENCODER", "")
+	s := newTestServer(t)
+	if s.serverSnapshot().encoder != "auto" {
+		t.Fatal("automatic encoding must be the default")
+	}
+	admin := login(t, s, "jumedia", "admin123")
+	for _, encoder := range []string{"auto", "h264_vaapi", "libx264"} {
+		assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverVideoEncoder": {encoder}}), 0)
+		if s.serverSnapshot().encoder != encoder {
+			t.Fatalf("encoder %s not applied", encoder)
+		}
+	}
+	assertCode(t, adminTestPost(t, s, admin, "settings/save", url.Values{"serverVideoEncoder": {""}}), 0)
+	if s.serverSnapshot().encoder != "auto" {
+		t.Fatal("clearing override must restore automatic default")
 	}
 }
 

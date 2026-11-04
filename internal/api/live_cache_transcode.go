@@ -126,7 +126,7 @@ func (s *Server) liveCacheInput(ctx context.Context, media string, aid, cid int6
 	go func() { defer close(done); _ = proxy.Serve(listener) }()
 	return "http://" + listener.Addr().String() + path, func() { _ = proxy.Close(); <-done }, nil
 }
-func liveCacheArgs(x *liveCache, p liveCacheProbe, input, encoder string, toneMap bool) ([]string, error) {
+func liveCacheArgs(x *liveCache, p liveCacheProbe, input, encoder, device string, toneMap bool) ([]string, error) {
 	height := 0
 	transfer := ""
 	audio := -1
@@ -157,7 +157,11 @@ func liveCacheArgs(x *liveCache, p liveCacheProbe, input, encoder string, toneMa
 	}
 	height = min(height, x.Height)
 	height = max(2, height/2*2)
-	args := []string{"-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-i", input}
+	args := []string{"-hide_banner", "-nostdin", "-y", "-loglevel", "error"}
+	if encoder == "h264_vaapi" {
+		args = append(args, "-vaapi_device", device)
+	}
+	args = append(args, "-i", input)
 	if audio < 0 {
 		args = append(args, "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000")
 	}
@@ -167,11 +171,23 @@ func liveCacheArgs(x *liveCache, p liveCacheProbe, input, encoder string, toneMa
 	} else {
 		args = append(args, "-map", "1:a:0", "-shortest")
 	}
+	args = append(args, liveCacheVideoArgs(height, transfer, encoder, toneMap)...)
+	args = append(args, "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2", "-sn", "-dn", "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod", "-hls_segment_type", "mpegts", "-hls_segment_filename", filepath.Join(x.Dir+".tmp", "seg%05d.ts"), "-progress", "pipe:1", filepath.Join(x.Dir+".tmp", "index.m3u8"))
+	return args, nil
+}
+
+func liveCacheVideoArgs(height int, transfer, encoder string, toneMap bool) []string {
 	vf := fmt.Sprintf("scale=-2:%d,format=yuv420p", height)
+	if encoder == "h264_vaapi" {
+		vf = fmt.Sprintf("scale=-2:%d,format=nv12,hwupload", height)
+	}
 	if toneMap && (transfer == "smpte2084" || transfer == "arib-std-b67") {
 		vf = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv," + vf
 	}
-	args = append(args, "-vf", vf, "-c:v", encoder, "-pix_fmt", "yuv420p")
+	args := []string{"-vf", vf, "-c:v", encoder}
+	if encoder != "h264_vaapi" {
+		args = append(args, "-pix_fmt", "yuv420p")
+	}
 	if encoder == "libx264" {
 		args = append(args, "-preset", "veryfast", "-crf", "21", "-profile:v", "high")
 	}
@@ -185,8 +201,10 @@ func liveCacheArgs(x *liveCache, p liveCacheProbe, input, encoder string, toneMa
 	if height > 1440 {
 		rate = 20
 	}
-	args = append(args, "-maxrate", fmt.Sprintf("%dM", rate), "-bufsize", fmt.Sprintf("%dM", rate*2), "-force_key_frames", "expr:gte(t,n_forced*2)", "-sc_threshold", "0", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2", "-sn", "-dn", "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod", "-hls_segment_type", "mpegts", "-hls_segment_filename", filepath.Join(x.Dir+".tmp", "seg%05d.ts"), "-progress", "pipe:1", filepath.Join(x.Dir+".tmp", "index.m3u8"))
-	return args, nil
+	if encoder == "h264_vaapi" {
+		args = append(args, "-b:v", fmt.Sprintf("%dM", rate))
+	}
+	return append(args, "-maxrate", fmt.Sprintf("%dM", rate), "-bufsize", fmt.Sprintf("%dM", rate*2), "-force_key_frames", "expr:gte(t,n_forced*2)", "-sc_threshold", "0")
 }
 
 // Bounded stderr avoids retaining unbounded diagnostics from an unhealthy process.
@@ -299,15 +317,15 @@ func (s *Server) transcodeLiveCache(ctx context.Context, x *liveCache, cfg serve
 			s.Logger.Warn("HDR 转码缺少 zscale/tonemap，直接转换", "key", x.Key)
 		}
 	}
-	args, e := liveCacheArgs(x, p, input, cfg.encoder, toneMap)
-	if e != nil {
-		return 0, e
-	}
+	return s.encodeLiveCache(ctx, x, p, input, binary, cfg.encoder, liveCacheRenderDevice, toneMap, stallTimeout)
+}
+
+func (s *Server) runLiveCacheTranscode(ctx context.Context, x *liveCache, binary string, args []string, stallTimeout time.Duration) (int64, error) {
 	work, cancel := context.WithCancel(ctx)
 	defer cancel()
-	cmd = exec.CommandContext(work, binary, args...)
+	cmd := exec.CommandContext(work, binary, args...)
 	cmd.WaitDelay = time.Second
-	stderr = liveCacheTail{}
+	stderr := liveCacheTail{}
 	cmd.Stderr = &stderr
 	progress := &liveCacheProgress{last: time.Now(), duration: x.Duration, update: func(n int) {
 		_, e := s.Store.DB.ExecContext(work, "UPDATE live_caches SET progress=?,mtime=? WHERE key=? AND status='running'", n, time.Now().Unix(), x.Key)
@@ -327,7 +345,7 @@ func (s *Server) transcodeLiveCache(ctx context.Context, x *liveCache, cfg serve
 	stalled := false
 	for {
 		select {
-		case e = <-done:
+		case e := <-done:
 			if stalled {
 				return 0, errors.New("转码超过 10 分钟没有进度，请重试")
 			}

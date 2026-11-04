@@ -80,7 +80,7 @@ go run ./cmd/jumedia reset
 | `JUMEDIA_DATASOURCE_KEY` | 空 | base64 编码的 32 字节密钥，用于加密数据源密码；为空时首次启动生成 `${JUMEDIA_DATA_DIR}/datasource.key` |
 | `JUMEDIA_FFMPEG` | `ffmpeg` | ffmpeg 路径或命令名 |
 | `JUMEDIA_FFPROBE` | `ffprobe` | ffprobe 路径或命令名 |
-| `JUMEDIA_FFMPEG_VIDEO_ENCODER` | `libx264` | 直播转码的视频编码器：`libx264`、`h264_videotoolbox`、`h264_nvenc`、`h264_qsv` |
+| `JUMEDIA_FFMPEG_VIDEO_ENCODER` | `auto` | 直播转码的视频编码器：`auto`、`libx264`、`h264_vaapi`、`h264_videotoolbox`、`h264_nvenc`、`h264_qsv` |
 
 相对路径以服务的运行目录为基准。
 
@@ -212,9 +212,22 @@ go run ./cmd/jumedia
 
 - 视频首次被选用时会排队转码，缓存完成前不能开播；勾选自动开播后，转码完成即开播。转码失败可在创作中心或管理后台重试。
 - 后台每次只转码一个任务。同一视频、同一分辨率的缓存会被共享。
-- 1080p 缓存约占 1.4 GB / 小时，转码期间还需要额外的临时空间。超过 24 小时没有直播间引用的缓存会被自动删除。
+- 缓存大小取决于编码器和内容；VAAPI 的 1080p 视频目标码率为 8 Mbps，含音频约 3.7 GB / 小时。转码期间还需要额外的临时空间。超过 24 小时没有直播间引用的缓存会被自动删除。
 - 源为 HDR 时，如果 ffmpeg 带有 `zscale` 与 `tonemap` 滤镜，会转换为 SDR。
 - 转码进程只访问本机的临时地址，Emby 地址和凭据不会出现在 ffmpeg 命令行中。
+
+默认使用 `auto`：每个任务先检查 `/dev/dri/renderD128` 的访问权限，并通过 FFmpeg 实际试编码一帧。可用时用 VAAPI 加速 H.264 编码；设备不存在、权限不足、驱动或编码器不可用时使用 `libx264`。正式硬件编码失败时会清理临时缓存、重置进度，并用软件编码重试一次。解码、缩放及 HDR 色调映射仍由 CPU 完成。
+
+后台「服务器配置 → 视频编码器」可选择 `auto`，或选择 `libx264` 强制软件编码。已有的非空后台设置会继续覆盖环境变量；手动指定编码器时不会自动切换或回退。原生部署需要安装支持 VAAPI 的 FFmpeg 与对应显卡驱动，并让服务用户拥有设备读写权限。Docker 镜像包含 Mesa 驱动，x86_64 镜像还包含 Intel 驱动；宿主机仍需安装并加载显卡内核驱动。
+
+Docker 在具有该设备的 Linux 主机上可叠加 `deploy/compose.gpu.yaml`，按设备实际组 ID 授权给容器用户，无需特权容器：
+
+```sh
+export JUMEDIA_RENDER_GID=$(stat -c '%g' /dev/dri/renderD128)
+docker compose -f deploy/compose.yaml -f deploy/compose.gpu.yaml up -d
+```
+
+如果已把部署文件复制到独立目录，请同时复制两个 Compose 文件并调整命令中的路径。无 GPU 的主机继续只使用基础 `compose.yaml`。仅切换编码器不会重新生成已完成的缓存；需要重新编码时，先让所有引用该缓存的直播间更换直播源，再在后台删除对应缓存并重新选择视频。
 
 ### 直播聊天
 

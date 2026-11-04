@@ -1,0 +1,8 @@
+# Optional Linux VAAPI access. Use alongside compose.yaml on hosts with this device.
+# Set JUMEDIA_RENDER_GID to: stat -c '%g' /dev/dri/renderD128
+services:
+  jumedia:
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    group_add:
+      - "${JUMEDIA_RENDER_GID:?Set JUMEDIA_RENDER_GID to the renderD128 device group ID}"

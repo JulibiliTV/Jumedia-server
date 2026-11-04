@@ -11,7 +11,8 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/jumedia ./cmd/jumedia
 
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates tzdata ffmpeg \
+RUN apk add --no-cache ca-certificates tzdata ffmpeg mesa-va-gallium \
+ && if [ "$(apk --print-arch)" = "x86_64" ]; then apk add --no-cache intel-media-driver libva-intel-driver; fi \
  && adduser -D -H -u 10001 jumedia \
  && mkdir /data && chown jumedia /data
 COPY --from=server /out/jumedia /usr/local/bin/jumedia

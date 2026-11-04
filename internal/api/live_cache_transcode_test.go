@@ -36,7 +36,6 @@ func TestLiveCacheRealTranscode(t *testing.T) {
 	}
 	t.Setenv("JUMEDIA_FFMPEG", ffmpeg)
 	t.Setenv("JUMEDIA_FFPROBE", "ffprobe")
-	t.Setenv("JUMEDIA_FFMPEG_VIDEO_ENCODER", "libx264")
 	path := filepath.Join(t.TempDir(), "input.mkv")
 	cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=25", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "10", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", path)
 	if out, e := cmd.CombinedOutput(); e != nil {
@@ -54,92 +53,97 @@ func TestLiveCacheRealTranscode(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	testServers(t, func(t *testing.T, s *Server) {
-		u, _, rid := cacheSetup(t, s)
-		f := newSourceFixture(t)
-		var ranges atomic.Int32
-		f.stream = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Query().Get("Static") != "true" || r.URL.Query().Get("api_key") != "" {
-				t.Error("not raw", r.URL)
-			}
-			if r.Header.Get("Range") != "" {
-				ranges.Add(1)
-			}
-			input := raw
-			if strings.Contains(r.URL.Path, "/movie/") {
-				input = silent
-			}
-			http.ServeContent(w, r, "input.mkv", time.Time{}, bytes.NewReader(input))
-		})
-		id := sourceSave(t, s, u, f, true, "transcode")
-		a := sourceArchives(t, s, id)["mkv"]
-		x := cacheChoose(t, s, u, a.Pages[0], true)
-		if x.Status != "pending" {
-			t.Fatal(x)
-		}
-		// A second room shares the cache, but a banned pending room must stay offline.
-		liveExec(t, s, "UPDATE rooms SET source=(SELECT source FROM rooms WHERE room_id=?),pending_start=1,banned=1,live_status=0 WHERE room_id=?", rid, 21000)
-		if e := s.InitLiveCaches(context.Background()); e != nil {
-			t.Fatal(e)
-		}
-		t.Cleanup(s.CloseLiveCaches)
-		cacheWait(t, s, x.Key, "running")
-		ready := cacheWait(t, s, x.Key, "ready")
-		if ready.Progress != 100 || ready.Size == 0 || ready.Duration < 9.9 {
-			t.Fatal(ready)
-		}
-		r := liveRoom(t, s, rid)
-		if r.LiveStatus != 1 || r.PendingStart || r.Online < 1 || r.LiveTime == 0 {
-			t.Fatal(r)
-		}
-		if liveRoom(t, s, 21000).LiveStatus != 0 {
-			t.Fatal("banned room started")
-		}
-		body, e := liveCacheRead(ready, "index.m3u8")
-		if e != nil {
-			t.Fatal(e)
-		}
-		playlist, e := hls.ParsePlaylist(string(body), "http://example.com"+liveCachePath(x.Key))
-		if e != nil || !playlist.Ended || playlist.Kind != "media" || len(playlist.Segments) < 2 {
-			t.Fatal(playlist, e)
-		}
-		if !strings.Contains(string(body), "#EXT-X-PLAYLIST-TYPE:VOD") {
-			t.Fatal(string(body))
-		}
-		w := sourceHTTP(s, liveCachePath(x.Key))
-		if w.Code != 200 {
-			t.Fatal(w.Code)
-		}
-		req := httptest.NewRequest("GET", playlist.Segments[0].URI, nil)
-		req.Header.Set("Range", "bytes=0-187")
-		w = httptest.NewRecorder()
-		s.ServeHTTP(w, req)
-		if w.Code != 206 || w.Body.Len() != 188 {
-			t.Fatal(w.Code, w.Body.Len())
-		}
-		w = sourceHTTP(s, fmt.Sprintf("/live-relay/%d/index.m3u8", rid))
-		if w.Code != 200 || !strings.Contains(w.Body.String(), "/live-cache/"+x.Key) || strings.Contains(w.Body.String(), "#EXT-X-ENDLIST") {
-			t.Fatal(w.Code, w.Body.String())
-		}
-		if ranges.Load() == 0 {
-			t.Fatal("Range not forwarded")
-		}
-		// Validate actual output codecs, pixel format, audio layout and no upscale.
-		probe := exec.Command("ffprobe", "-v", "error", "-show_streams", "-of", "json", filepath.Join(x.Dir, "index.m3u8"))
-		out, e := probe.Output()
-		if e != nil || !bytes.Contains(out, []byte(`"codec_name": "h264"`)) || !bytes.Contains(out, []byte(`"codec_name": "aac"`)) || !bytes.Contains(out, []byte(`"height": 240`)) || !bytes.Contains(out, []byte(`"pix_fmt": "yuv420p"`)) {
-			t.Fatal(e, string(out))
-		}
-		assertCode(t, sourcePost(t, s, u, "/room/v1/Room/stopLive", nil), 0)
-		silentArchive := sourceArchives(t, s, id)["movie"]
-		next := cacheChoose(t, s, u, silentArchive.Pages[0], true)
-		cacheWait(t, s, next.Key, "ready")
-		out, e = exec.Command("ffprobe", "-v", "error", "-show_streams", "-of", "json", filepath.Join(next.Dir, "index.m3u8")).Output()
-		if e != nil || !bytes.Contains(out, []byte(`"codec_name": "aac"`)) || !bytes.Contains(out, []byte(`"channels": 2`)) {
-			t.Fatal("silent audio missing", e, string(out))
-		}
+	for _, encoder := range []string{"libx264", "auto"} {
+		t.Run(encoder, func(t *testing.T) {
+			t.Setenv("JUMEDIA_FFMPEG_VIDEO_ENCODER", encoder)
+			testServers(t, func(t *testing.T, s *Server) {
+				u, _, rid := cacheSetup(t, s)
+				f := newSourceFixture(t)
+				var ranges atomic.Int32
+				f.stream = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Query().Get("Static") != "true" || r.URL.Query().Get("api_key") != "" {
+						t.Error("not raw", r.URL)
+					}
+					if r.Header.Get("Range") != "" {
+						ranges.Add(1)
+					}
+					input := raw
+					if strings.Contains(r.URL.Path, "/movie/") {
+						input = silent
+					}
+					http.ServeContent(w, r, "input.mkv", time.Time{}, bytes.NewReader(input))
+				})
+				id := sourceSave(t, s, u, f, true, "transcode")
+				a := sourceArchives(t, s, id)["mkv"]
+				x := cacheChoose(t, s, u, a.Pages[0], true)
+				if x.Status != "pending" {
+					t.Fatal(x)
+				}
+				// A second room shares the cache, but a banned pending room must stay offline.
+				liveExec(t, s, "UPDATE rooms SET source=(SELECT source FROM rooms WHERE room_id=?),pending_start=1,banned=1,live_status=0 WHERE room_id=?", rid, 21000)
+				if e := s.InitLiveCaches(context.Background()); e != nil {
+					t.Fatal(e)
+				}
+				t.Cleanup(s.CloseLiveCaches)
+				cacheWait(t, s, x.Key, "running")
+				ready := cacheWait(t, s, x.Key, "ready")
+				if ready.Progress != 100 || ready.Size == 0 || ready.Duration < 9.9 {
+					t.Fatal(ready)
+				}
+				r := liveRoom(t, s, rid)
+				if r.LiveStatus != 1 || r.PendingStart || r.Online < 1 || r.LiveTime == 0 {
+					t.Fatal(r)
+				}
+				if liveRoom(t, s, 21000).LiveStatus != 0 {
+					t.Fatal("banned room started")
+				}
+				body, e := liveCacheRead(ready, "index.m3u8")
+				if e != nil {
+					t.Fatal(e)
+				}
+				playlist, e := hls.ParsePlaylist(string(body), "http://example.com"+liveCachePath(x.Key))
+				if e != nil || !playlist.Ended || playlist.Kind != "media" || len(playlist.Segments) < 2 {
+					t.Fatal(playlist, e)
+				}
+				if !strings.Contains(string(body), "#EXT-X-PLAYLIST-TYPE:VOD") {
+					t.Fatal(string(body))
+				}
+				w := sourceHTTP(s, liveCachePath(x.Key))
+				if w.Code != 200 {
+					t.Fatal(w.Code)
+				}
+				req := httptest.NewRequest("GET", playlist.Segments[0].URI, nil)
+				req.Header.Set("Range", "bytes=0-187")
+				w = httptest.NewRecorder()
+				s.ServeHTTP(w, req)
+				if w.Code != 206 || w.Body.Len() != 188 {
+					t.Fatal(w.Code, w.Body.Len())
+				}
+				w = sourceHTTP(s, fmt.Sprintf("/live-relay/%d/index.m3u8", rid))
+				if w.Code != 200 || !strings.Contains(w.Body.String(), "/live-cache/"+x.Key) || strings.Contains(w.Body.String(), "#EXT-X-ENDLIST") {
+					t.Fatal(w.Code, w.Body.String())
+				}
+				if ranges.Load() == 0 {
+					t.Fatal("Range not forwarded")
+				}
+				// Validate actual output codecs, pixel format, audio layout and no upscale.
+				probe := exec.Command("ffprobe", "-v", "error", "-show_streams", "-of", "json", filepath.Join(x.Dir, "index.m3u8"))
+				out, e := probe.Output()
+				if e != nil || !bytes.Contains(out, []byte(`"codec_name": "h264"`)) || !bytes.Contains(out, []byte(`"codec_name": "aac"`)) || !bytes.Contains(out, []byte(`"height": 240`)) || !bytes.Contains(out, []byte(`"pix_fmt": "yuv420p"`)) {
+					t.Fatal(e, string(out))
+				}
+				assertCode(t, sourcePost(t, s, u, "/room/v1/Room/stopLive", nil), 0)
+				silentArchive := sourceArchives(t, s, id)["movie"]
+				next := cacheChoose(t, s, u, silentArchive.Pages[0], true)
+				cacheWait(t, s, next.Key, "ready")
+				out, e = exec.Command("ffprobe", "-v", "error", "-show_streams", "-of", "json", filepath.Join(next.Dir, "index.m3u8")).Output()
+				if e != nil || !bytes.Contains(out, []byte(`"codec_name": "aac"`)) || !bytes.Contains(out, []byte(`"channels": 2`)) {
+					t.Fatal("silent audio missing", e, string(out))
+				}
 
-	})
+			})
+		})
+	}
 }
 func TestLiveCacheProcessFailureRecoveryAndCancel(t *testing.T) {
 	probe := cacheScript(t, `printf '%s\n' '{"streams":[{"index":0,"codec_type":"video","height":1080},{"index":1,"codec_type":"audio","disposition":{"default":1}}],"format":{"duration":"10"}}'`)
@@ -249,7 +253,7 @@ func TestLiveCacheToolsAndArguments(t *testing.T) {
 			Default int `json:"default"`
 		} `json:"disposition"`
 	}{Index: 0, Type: "video", Height: 2160, Transfer: "smpte2084"})
-	args, e := liveCacheArgs(x, probe, "http://127.0.0.1:12345/token", "libx264", true)
+	args, e := liveCacheArgs(x, probe, "http://127.0.0.1:12345/token", "libx264", liveCacheRenderDevice, true)
 	if e != nil {
 		t.Fatal(e)
 	}

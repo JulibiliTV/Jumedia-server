@@ -28,7 +28,7 @@ type serverRuntime struct {
 func (s *Server) initServerSettings() {
 	cfg := s.Config
 	startup := serverValues{publicOrigin: cfg.PublicOrigin,
-		ffmpeg: adminDefault(os.Getenv("JUMEDIA_FFMPEG"), "ffmpeg"), ffprobe: adminDefault(os.Getenv("JUMEDIA_FFPROBE"), "ffprobe"), encoder: adminDefault(os.Getenv("JUMEDIA_FFMPEG_VIDEO_ENCODER"), "libx264")}
+		ffmpeg: adminDefault(os.Getenv("JUMEDIA_FFMPEG"), "ffmpeg"), ffprobe: adminDefault(os.Getenv("JUMEDIA_FFPROBE"), "ffprobe"), encoder: adminDefault(os.Getenv("JUMEDIA_FFMPEG_VIDEO_ENCODER"), "auto")}
 	s.runtime = &serverRuntime{startup: startup, boot: cfg, sourceKeySet: os.Getenv("JUMEDIA_DATASOURCE_KEY") != "", current: startup}
 	settings, err := s.Store.Settings(context.Background())
 	s.runtime.initErr = err
@@ -66,7 +66,7 @@ var serverCommand = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 func serverEncoderValid(value string) bool {
 	switch value {
-	case "libx264", "h264_videotoolbox", "h264_nvenc", "h264_qsv":
+	case "auto", "libx264", "h264_vaapi", "h264_videotoolbox", "h264_nvenc", "h264_qsv":
 		return true
 	}
 	return false
