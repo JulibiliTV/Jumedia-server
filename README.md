@@ -1,6 +1,8 @@
 # Jumedia Server
 
-Jumedia 是一个自托管的在线视频与直播平台。本仓库是它的 Go 后端，为 [Jumedia Web](../Jumedia-web) 网页端和 JulibiliTV 电视客户端提供同一套 HTTP 接口。
+Jumedia 是一个聚合 Emby、Jellyfin、飞牛影视等媒体源和弹弹 Play 弹幕源的媒体平台，既可用于多人之间的媒体分享，也可用于个人多个媒体库的统一聚合。
+
+本仓库是 Jumedia 的 Go 后端，为 [Jumedia Web](../Jumedia-web) 网页端和 JulibiliTV 电视客户端提供同一套 HTTP 接口。
 
 - **视频**：投稿、审核、合集、分区与子分区、推荐与排行、搜索、字幕、protobuf 弹幕。
 - **番剧 / 影视**：剧集与分集、索引筛选、时间表、榜单、追番与观看进度。
@@ -370,3 +372,9 @@ JUMEDIA_TEST_EMBY_PASSWORD='<密码>' JUMEDIA_TEST_EMBY_PACKAGE=./jumedia-demo.j
 - 多步写操作放在同一事务中，事务内只使用传入的 `tx`。
 - 新增数据库变更以新的迁移文件提供，且必须可重复执行。
 - 修改接口时，先更新网页端的 Mock 契约，再在服务端实现；JulibiliTV 已使用的接口只能新增字段，不能修改或删除已有字段。
+
+## 许可证
+
+Copyright 2026 Jumedia contributors.
+
+除另有声明的第三方组件与资源外，本项目采用 [Apache License 2.0](LICENSE) 开源。第三方代码、依赖与资源保留各自的许可证和版权声明。
