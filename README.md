@@ -88,6 +88,8 @@ go run ./cmd/jumedia reset
 
 相对路径以服务的运行目录为基准。
 
+公开站点接口 `/x/jumedia/site` 的 `version` 返回当前服务端构建版本，供网页版权说明下方显示。原生构建默认使用 `0.1.0` 与 Go 记录的 Git 短提交号；未提交修改带 `.dirty`，缺少提交信息时标记 `dev`。从源码归档构建时可用 `-ldflags "-X jumedia-server/internal/buildinfo.Version=<版本号> -X jumedia-server/internal/buildinfo.Revision=<提交号>"` 注入；Docker 对应参数为 `BUILD_VERSION`、`BUILD_REVISION`，发布工作流自动传入。
+
 ### 管理后台设置
 
 以下设置在管理后台「站点设置」中修改，保存后立即生效，无需重启：

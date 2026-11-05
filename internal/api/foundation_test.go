@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"jumedia-server/internal/buildinfo"
 	"net/url"
 	"strings"
 	"testing"
@@ -31,6 +32,9 @@ func TestFoundationRoutes(t *testing.T) {
 		d = v["data"].(map[string]any)
 		if d["siteName"] != "Jumedia" || d["allowRegister"] != true || len(d["banners"].([]any)) != 4 {
 			t.Fatal(d)
+		}
+		if d["version"] != buildinfo.Current() {
+			t.Fatal("site must expose the running server version", d["version"])
 		}
 		b := d["banners"].([]any)[0].(map[string]any)
 		if b["position"] != "home" || b["url"] == "" || b["sort"] != float64(0) {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"jumedia-server/internal/buildinfo"
 	"jumedia-server/internal/render"
 	"jumedia-server/internal/store"
 )
@@ -28,7 +29,7 @@ func (s *Server) registerFoundation() {
 		if err != nil {
 			return nil, err
 		}
-		v := map[string]any{"banners": banners}
+		v := map[string]any{"banners": banners, "version": buildinfo.Current()}
 		for _, k := range []string{"siteName", "allowRegister", "announcement"} {
 			if x, ok := settings[k]; ok {
 				v[k] = x

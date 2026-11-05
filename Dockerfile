@@ -8,7 +8,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/jumedia ./cmd/jumedia
+ARG BUILD_VERSION=0.1.0
+ARG BUILD_REVISION=dev
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X jumedia-server/internal/buildinfo.Version=${BUILD_VERSION} -X jumedia-server/internal/buildinfo.Revision=${BUILD_REVISION}" -o /out/jumedia ./cmd/jumedia
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata ffmpeg mesa-va-gallium \
