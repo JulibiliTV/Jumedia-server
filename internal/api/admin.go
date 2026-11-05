@@ -12,7 +12,8 @@ func (s *Server) registerAdmin() {
 	s.handle("/x/jumedia/service", s.jumediaService)
 	routes := map[string]Handler{
 		"dashboard": s.adminDashboard, "users": s.adminUsers, "user/update": s.adminUserUpdate,
-		"archives": s.adminArchives, "archive/audit": s.adminArchiveAudit, "archive/delete": s.adminArchiveDelete,
+		"user/password": s.adminUserPassword,
+		"archives":      s.adminArchives, "archive/audit": s.adminArchiveAudit, "archive/delete": s.adminArchiveDelete,
 		"archive/danmaku": s.adminArchiveDanmaku,
 		"seasons":         s.adminSeasons, "season/save": s.adminSeasonSave, "season/delete": s.adminSeasonDelete,
 		"live/rooms": s.adminRooms, "live/room/ban": s.adminRoomBan,

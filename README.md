@@ -36,6 +36,8 @@ JUMEDIA_ADMIN_USERNAME=owner JUMEDIA_ADMIN_PASSWORD='<管理员密码>' go run .
 go run ./cmd/jumedia admin owner '<新密码>'
 ```
 
+管理员也可在后台「用户管理 → 修改密码」直接设置用户的新密码，无需原密码，至少 6 位。保存后撤销该用户已有登录会话及绑定的扫码登录凭据，用户需重新登录；修改管理员自己的密码也会退出当前登录。接口为 `POST /x/admin/user/password`，参数为 `mid`、`new_password` 和当前会话的 `csrf`，密码不会在响应或操作日志中回显。
+
 演示内容通过网页端 `scripts/import-emby.mjs` 生成的 `jumedia-demo` v1 JSON 数据包导入。仅初始状态（基础数据和管理员账号）允许导入：
 
 ```sh

@@ -16,7 +16,7 @@ var adminReadRoutes = []struct {
 	{"regions", []string{"list"}}, {"live/areas", []string{"list"}}, {"banners", []string{"list"}},
 	{"settings", []string{"siteName", "allowRegister", "maxUploadMB"}}, {"logs", []string{"list", "page"}},
 }
-var adminWriteRoutes = []string{"user/update", "archive/audit", "archive/delete", "season/save", "season/delete", "live/room/ban", "reply/delete", "danmaku/delete", "region/save", "region/delete", "live/area/save", "banner/save", "banner/delete", "settings/save"}
+var adminWriteRoutes = []string{"user/update", "user/password", "archive/audit", "archive/delete", "season/save", "season/delete", "live/room/ban", "reply/delete", "danmaku/delete", "region/save", "region/delete", "live/area/save", "banner/save", "banner/delete", "settings/save"}
 
 func TestAdminRoutePermissions(t *testing.T) {
 	testServers(t, func(t *testing.T, s *Server) {
