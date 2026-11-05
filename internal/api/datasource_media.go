@@ -232,6 +232,11 @@ func (s *Server) serveSourceMedia(w http.ResponseWriter, r *http.Request) {
 	var res *http.Response
 	if image {
 		res, err = client.Image(ctx, item, kind, r.URL.Query().Get("tag"))
+	} else if r.Method == http.MethodHead {
+		if kind == "mp4" {
+			container = "mp4"
+		}
+		res, err = client.HeadStream(ctx, item, source, container, r.Header)
 	} else if kind == "file" {
 		res, err = client.RawStream(ctx, item, source, container, r.Header)
 	} else if kind == "mp4" {
@@ -261,5 +266,8 @@ func (s *Server) serveSourceMedia(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(res.StatusCode)
+	if r.Method == http.MethodHead {
+		return
+	}
 	_, _ = io.Copy(w, res.Body)
 }

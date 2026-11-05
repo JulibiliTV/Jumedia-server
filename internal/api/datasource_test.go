@@ -57,7 +57,7 @@ func newSourceFixture(t *testing.T) *sourceFixture {
 	f.episodes["multi"][4].MediaSources = nil
 	f.episodes["single"] = []emby.Item{sourceEpisode("single2", "第 2 集", 1, 2), sourceEpisode("single1", "开始", 1, 1)}
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" && r.URL.Path != "/emby/Users/AuthenticateByName" && !strings.HasSuffix(r.URL.Path, "/PlaybackInfo") {
+		if r.Method != "GET" && r.Method != "HEAD" && r.URL.Path != "/emby/Users/AuthenticateByName" && !strings.HasSuffix(r.URL.Path, "/PlaybackInfo") {
 			t.Error("Emby write attempted", r.Method, r.URL.Path)
 		}
 		if r.URL.Path == "/emby/Users/AuthenticateByName" {

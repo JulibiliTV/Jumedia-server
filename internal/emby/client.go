@@ -146,8 +146,17 @@ func (c *Client) StreamURL(ctx context.Context, item, source, container string) 
 
 // RawStream forwards the original file without requesting a playback session or transcoding.
 func (c *Client) RawStream(ctx context.Context, item, source, container string, headers http.Header) (*http.Response, error) {
+	return c.rawStream(ctx, http.MethodGet, item, source, container, headers)
+}
+
+// HeadStream reads original-file metadata without downloading its body.
+func (c *Client) HeadStream(ctx context.Context, item, source, container string, headers http.Header) (*http.Response, error) {
+	return c.rawStream(ctx, http.MethodHead, item, source, container, headers)
+}
+
+func (c *Client) rawStream(ctx context.Context, method, item, source, container string, headers http.Header) (*http.Response, error) {
 	if !ValidPair(item, source) || !rawContainer.MatchString(container) {
 		return nil, ErrUnavailable
 	}
-	return c.request(ctx, "GET", "/Videos/"+item+"/stream."+container, url.Values{"Static": {"true"}, "MediaSourceId": {source}, "DeviceId": {DeviceID}}, headers)
+	return c.request(ctx, method, "/Videos/"+item+"/stream."+container, url.Values{"Static": {"true"}, "MediaSourceId": {source}, "DeviceId": {DeviceID}}, headers)
 }
