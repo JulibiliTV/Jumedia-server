@@ -250,7 +250,7 @@ func createDemoSourcesTx(ctx context.Context, tx *db.Tx, p DemoPackage, password
 			return err
 		}
 		slices.SortFunc(owners[mid], func(a, b store.DataSourceLibrary) int { return strings.Compare(a.ID, b.ID) })
-		ds := store.DataSource{ID: id, MID: mid, System: false, Type: "emby", Name: "演示 Emby", URL: strings.TrimRight(p.Emby.URL, "/"), Username: p.Emby.Username, PasswordEnc: password, Libraries: owners[mid], AutoSync: false, Status: "idle", Ctime: time.Now().Unix()}
+		ds := store.DataSource{ID: id, MID: mid, System: false, Type: "emby", Name: "演示 Emby", URL: strings.TrimRight(p.Emby.URL, "/"), Username: p.Emby.Username, PasswordEnc: password, Libraries: owners[mid], AutoSync: false, ProxyPlayback: true, Status: "idle", Ctime: time.Now().Unix()}
 		if err = store.SaveDataSource(ctx, tx, &ds); err != nil {
 			return err
 		}

@@ -272,7 +272,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			if e != nil {
 				return e
 			}
-			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: "emby", AutoSync: true, Ctime: time.Now().Unix()}
+			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: "emby", AutoSync: true, ProxyPlayback: true, Ctime: time.Now().Unix()}
 		}
 		var count int
 		if e := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM data_sources WHERE mid=? AND system=? AND server_id=? AND username=? AND id<>?", mid, store.BoolInt(admin), info.ServerID, username, ds.ID).Scan(&count); e != nil {
@@ -320,6 +320,9 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 		ds.Message = "正在同步媒体库…"
 		if v, ok := c.P["auto_sync"]; ok {
 			ds.AutoSync = BoolParam(v)
+		}
+		if v, ok := c.P["proxy_playback"]; ok {
+			ds.ProxyPlayback = BoolParam(v)
 		}
 		if e := store.SaveDataSource(ctx, tx, ds); e != nil {
 			return e

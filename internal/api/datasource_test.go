@@ -85,6 +85,8 @@ func newSourceFixture(t *testing.T) *sourceFixture {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		switch {
+		case r.URL.Path == "/emby/Users/fixture":
+			fmt.Fprint(w, `{"Id":"fixture"}`)
 		case r.URL.Path == "/emby/System/Info/Public":
 			fmt.Fprint(w, `{"ServerName":"假 Emby","Id":"fixture-server","Version":"1.0"}`)
 		case r.URL.Path == "/emby/Users/fixture/Views":

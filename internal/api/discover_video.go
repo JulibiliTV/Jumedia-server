@@ -218,7 +218,7 @@ func (s *Server) discoverPlayURL(c *Ctx) (any, error) {
 	if !NonzeroTruthy(allow) && c.Me == nil {
 		return nil, Fail(-101, "请登录后观看")
 	}
-	media, err := discoverAbsoluteMedia(s.Origin(c.R), p.Media)
+	media, err := s.playbackMediaURL(c, p.Media)
 	if err != nil {
 		return nil, err
 	}

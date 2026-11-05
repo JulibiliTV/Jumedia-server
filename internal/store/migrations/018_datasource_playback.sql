@@ -1,0 +1,1 @@
+ALTER TABLE data_sources ADD COLUMN proxy_playback INTEGER NOT NULL DEFAULT 1;

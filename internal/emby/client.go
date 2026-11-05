@@ -121,6 +121,29 @@ func (c *Client) Stream(ctx context.Context, item, source string, headers http.H
 	return c.RawStream(ctx, item, source, "mp4", headers)
 }
 
+// StreamURL lets the player read the original file directly from Emby.
+// Check the cached session through metadata so revoked tokens can be renewed
+// by request's existing 401 retry without fetching any video bytes.
+func (c *Client) StreamURL(ctx context.Context, item, source, container string) (string, error) {
+	if !ValidPair(item, source) || !rawContainer.MatchString(container) {
+		return "", ErrUnavailable
+	}
+	user, err := c.user(ctx)
+	if err != nil {
+		return "", err
+	}
+	var profile struct{ ID string }
+	if err = c.JSON(ctx, "/Users/"+url.PathEscape(user), nil, &profile); err != nil {
+		return "", err
+	}
+	token, err := c.authorize(ctx, "")
+	if err != nil {
+		return "", err
+	}
+	query := url.Values{"Static": {"true"}, "MediaSourceId": {source}, "DeviceId": {DeviceID}, "api_key": {token}}
+	return c.base + "/Videos/" + item + "/stream." + container + "?" + query.Encode(), nil
+}
+
 // RawStream forwards the original file without requesting a playback session or transcoding.
 func (c *Client) RawStream(ctx context.Context, item, source, container string, headers http.Header) (*http.Response, error) {
 	if !ValidPair(item, source) || !rawContainer.MatchString(container) {

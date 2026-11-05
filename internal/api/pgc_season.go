@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
+	"jumedia-server/internal/emby"
 	"jumedia-server/internal/render"
 	"jumedia-server/internal/store"
 )
@@ -133,7 +135,7 @@ func (s *Server) pgcPlayURL(c *Ctx) (any, error) {
 	} else if err != nil {
 		return nil, err
 	}
-	media, err := discoverAbsoluteMedia(s.Origin(c.R), ep.Media)
+	media, err := s.playbackMediaURL(c, ep.Media)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +151,9 @@ func (s *Server) pgcPlayURL(c *Ctx) (any, error) {
 		clips = append(clips, render.M{"start": extra.OP[0], "end": extra.OP[1], "clipType": "CLIP_TYPE_OP", "toastText": "即将跳过片头"})
 	}
 	result := pgcPlayurlPayload(media, ep.Duration, NumberUnicode(c.P["qn"], 80))
+	if _, _, _, mode, ok := emby.ParseDSRef(ep.Media); ok && strings.HasPrefix(mode, "raw-") {
+		result["format"] = strings.TrimPrefix(mode, "raw-")
+	}
 	result["clip_info_list"] = clips
 	return Result(result), nil
 }

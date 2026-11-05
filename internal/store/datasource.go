@@ -38,30 +38,31 @@ type DataSourceLibrary struct {
 	CollectionID int64  `json:"collection_id"`
 }
 type DataSource struct {
-	ID          int64               `json:"id"`
-	MID         int64               `json:"mid"`
-	System      bool                `json:"system"`
-	Type        string              `json:"type"`
-	Name        string              `json:"name"`
-	URL         string              `json:"url"`
-	Username    string              `json:"username"`
-	PasswordEnc string              `json:"-"`
-	ServerName  string              `json:"server_name"`
-	ServerID    string              `json:"server_id"`
-	Libraries   []DataSourceLibrary `json:"libraries"`
-	AutoSync    bool                `json:"auto_sync"`
-	Status      string              `json:"status"`
-	Message     string              `json:"message"`
-	LastSync    int64               `json:"last_sync"`
-	Ctime       int64               `json:"ctime"`
+	ID            int64               `json:"id"`
+	MID           int64               `json:"mid"`
+	System        bool                `json:"system"`
+	Type          string              `json:"type"`
+	Name          string              `json:"name"`
+	URL           string              `json:"url"`
+	Username      string              `json:"username"`
+	PasswordEnc   string              `json:"-"`
+	ServerName    string              `json:"server_name"`
+	ServerID      string              `json:"server_id"`
+	Libraries     []DataSourceLibrary `json:"libraries"`
+	AutoSync      bool                `json:"auto_sync"`
+	ProxyPlayback bool                `json:"proxy_playback"`
+	Status        string              `json:"status"`
+	Message       string              `json:"message"`
+	LastSync      int64               `json:"last_sync"`
+	Ctime         int64               `json:"ctime"`
 }
 
-const sourceColumns = "id,mid,system,type,name,url,username,password_enc,server_name,server_id,libraries,auto_sync,status,message,last_sync,ctime"
+const sourceColumns = "id,mid,system,type,name,url,username,password_enc,server_name,server_id,libraries,auto_sync,status,message,last_sync,ctime,proxy_playback"
 
 func scanDataSource(row scanner) (*DataSource, error) {
 	var v DataSource
 	var libraries string
-	err := row.Scan(&v.ID, &v.MID, &v.System, &v.Type, &v.Name, &v.URL, &v.Username, &v.PasswordEnc, &v.ServerName, &v.ServerID, &libraries, &v.AutoSync, &v.Status, &v.Message, &v.LastSync, &v.Ctime)
+	err := row.Scan(&v.ID, &v.MID, &v.System, &v.Type, &v.Name, &v.URL, &v.Username, &v.PasswordEnc, &v.ServerName, &v.ServerID, &libraries, &v.AutoSync, &v.Status, &v.Message, &v.LastSync, &v.Ctime, &v.ProxyPlayback)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func SaveDataSource(ctx context.Context, q db.Querier, v *DataSource) error {
 	if err != nil {
 		return err
 	}
-	_, err = q.ExecContext(ctx, "INSERT INTO data_sources ("+sourceColumns+") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,username=excluded.username,password_enc=excluded.password_enc,server_name=excluded.server_name,server_id=excluded.server_id,libraries=excluded.libraries,auto_sync=excluded.auto_sync,status=excluded.status,message=excluded.message,last_sync=excluded.last_sync", v.ID, v.MID, BoolInt(v.System), v.Type, v.Name, v.URL, v.Username, v.PasswordEnc, v.ServerName, v.ServerID, string(b), BoolInt(v.AutoSync), v.Status, v.Message, v.LastSync, v.Ctime)
+	_, err = q.ExecContext(ctx, "INSERT INTO data_sources ("+sourceColumns+") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,username=excluded.username,password_enc=excluded.password_enc,server_name=excluded.server_name,server_id=excluded.server_id,libraries=excluded.libraries,auto_sync=excluded.auto_sync,status=excluded.status,message=excluded.message,last_sync=excluded.last_sync,proxy_playback=excluded.proxy_playback", v.ID, v.MID, BoolInt(v.System), v.Type, v.Name, v.URL, v.Username, v.PasswordEnc, v.ServerName, v.ServerID, string(b), BoolInt(v.AutoSync), v.Status, v.Message, v.LastSync, v.Ctime, BoolInt(v.ProxyPlayback))
 	return err
 }
 
