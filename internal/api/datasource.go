@@ -39,6 +39,8 @@ func (s *Server) registerDataSources() {
 		}
 	}
 	s.handle("/x/web/archive/origin/reset", s.resetArchiveOrigin)
+	s.handle("/x/web/datasource/items", s.sourceBrowse)
+	s.handle("/x/web/datasource/import", s.sourceImport)
 	s.handle("/x/web/season/origin/reset", s.resetCollectionOrigin)
 	s.handle("/xlive/app-blink/v1/streamSource/videos", func(c *Ctx) (any, error) {
 		u, e := c.Login()
@@ -276,7 +278,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			if e != nil {
 				return e
 			}
-			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: "emby", AutoSync: true, ProxyPlayback: true, Ctime: time.Now().Unix()}
+			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: "emby", AutoSync: true, ProxyPlayback: true, Status: "idle", Ctime: time.Now().Unix()}
 		}
 		var count int
 		if e := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM data_sources WHERE mid=? AND system=? AND server_id=? AND username=? AND id<>?", mid, store.BoolInt(ds.System), info.ServerID, username, ds.ID).Scan(&count); e != nil {
@@ -320,8 +322,10 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 		ds.ServerName = info.ServerName
 		ds.ServerID = info.ServerID
 		ds.Libraries = libs
-		ds.Status = "syncing"
-		ds.Message = "正在同步媒体库…"
+		if v, ok := c.P["sync_now"]; !ok || BoolParam(v) {
+			ds.Status = "syncing"
+			ds.Message = "正在同步媒体库…"
+		}
 		if v, ok := c.P["auto_sync"]; ok {
 			ds.AutoSync = BoolParam(v)
 		}
@@ -348,7 +352,9 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 		old.client.Close()
 		delete(r.clients, ds.ID)
 	}
-	s.launchSourceLocked(*ds)
+	if ds.Status == "syncing" {
+		s.launchSourceLocked(*ds)
+	}
 	return s.sourceJSON(c.Context(), *ds)
 }
 func (s *Server) deleteSource(c *Ctx, ds *store.DataSource) error {

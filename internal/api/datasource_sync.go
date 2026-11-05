@@ -358,7 +358,7 @@ func (s *Server) syncDataSource(ctx context.Context, ds *store.DataSource, setti
 		return len(seen), ctx.Err()
 	}
 	err = s.sourceSyncTx(ctx, ds, func(tx *db.Tx) error {
-		rows, e := tx.QueryContext(ctx, "SELECT aid,origin FROM archives WHERE origin_ds=? AND state<>-100", ds.ID)
+		rows, e := tx.QueryContext(ctx, "SELECT aid,origin FROM archives WHERE origin_ds=? AND state NOT IN (-100,-20)", ds.ID)
 		if e != nil {
 			return e
 		}
@@ -455,6 +455,9 @@ func saveSourceSyncArchive(ctx context.Context, tx *db.Tx, ds *store.DataSource,
 		}
 		if a.State == -100 || seen[aid] {
 			return 0, nil
+		}
+		if a.State == -20 {
+			return aid, nil
 		}
 		if result.err != nil {
 			return aid, nil

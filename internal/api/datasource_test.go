@@ -92,7 +92,8 @@ func newSourceFixture(t *testing.T) *sourceFixture {
 		case r.URL.Path == "/emby/Users/fixture/Views":
 			_ = json.NewEncoder(w).Encode(map[string]any{"Items": f.views})
 		case r.URL.Path == "/emby/Users/fixture/Items":
-			if r.URL.Query().Get("Limit") != "100" || r.URL.Query().Get("SortBy") != "SortName" {
+			limit := int(NumberGo(r.URL.Query().Get("Limit"), 0))
+			if limit < 1 || limit > 100 || r.URL.Query().Get("SortBy") != "SortName" {
 				t.Error("pagination/sort")
 			}
 			f.pages.Add(1)
@@ -109,9 +110,19 @@ func newSourceFixture(t *testing.T) *sourceFixture {
 				}
 				f.mu.Lock()
 			}
-			items := f.items[r.URL.Query().Get("ParentId")]
+			items := []emby.Item{}
+			for _, item := range f.items[r.URL.Query().Get("ParentId")] {
+				q := r.URL.Query()
+				if q.Get("SearchTerm") != "" && !strings.Contains(strings.ToLower(item.Name), strings.ToLower(q.Get("SearchTerm"))) {
+					continue
+				}
+				if q.Get("Ids") != "" && !strings.Contains(","+q.Get("Ids")+",", ","+item.ID+",") {
+					continue
+				}
+				items = append(items, item)
+			}
 			start := int(NumberGo(r.URL.Query().Get("StartIndex"), 0))
-			end := min(start+100, len(items))
+			end := min(start+limit, len(items))
 			if start > len(items) {
 				start = len(items)
 			}

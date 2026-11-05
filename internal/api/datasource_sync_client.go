@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -299,8 +300,17 @@ type sourceSyncItems struct {
 }
 
 func (c *sourceSyncClient) listPage(ctx context.Context, library string, start int) (sourceSyncItems, error) {
+	return c.browsePage(ctx, library, "", start, sourceSyncPage, nil)
+}
+func (c *sourceSyncClient) browsePage(ctx context.Context, library, keyword string, start, limit int, ids []string) (sourceSyncItems, error) {
 	var page sourceSyncItems
-	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {"Path,Overview,Genres,PremiereDate,DateCreated,MediaSources,RunTimeTicks"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(sourceSyncPage)}}
+	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {"Path,Overview,Genres,PremiereDate,DateCreated,MediaSources,RunTimeTicks"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(limit)}}
+	if keyword != "" {
+		q.Set("SearchTerm", keyword)
+	}
+	if len(ids) > 0 {
+		q.Set("Ids", strings.Join(ids, ","))
+	}
 	err := c.get(ctx, func(user string) string { return "/Users/" + url.PathEscape(user) + "/Items" }, q, &page)
 	return page, err
 }
