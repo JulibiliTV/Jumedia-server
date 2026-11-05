@@ -422,7 +422,8 @@ func TestDataSourceAccessLimitsAndLifecycle(t *testing.T) {
 		}
 		assertCode(t, sourcePost(t, s, user, "/x/web/datasource/save", url.Values{"url": {f.server.URL}, "username": {"six"}}), -400)
 		assertCode(t, sourcePost(t, s, user, "/x/web/datasource/save", url.Values{"id": {fmt.Sprint(ids[1])}, "url": {f.server.URL}, "username": {"account0"}}), -400)
-		assertCode(t, sourcePost(t, s, admin, "/x/admin/datasource/save", url.Values{"id": {fmt.Sprint(ids[0])}, "url": {f.server.URL}, "username": {"account0"}}), -404)
+		assertCode(t, sourcePost(t, s, admin, "/x/admin/datasource/save", url.Values{"id": {fmt.Sprint(ids[0])}, "url": {f.server.URL}, "username": {"account0"}}), 0)
+		sourceWait(t, s, ids[0])
 		d := sourceData(t, get(t, s, "/x/web/datasources", user))
 		if len(d["list"].([]any)) != 5 || d["max"] != float64(5) || d["sync_hours"] != float64(6) {
 			t.Fatal(d)

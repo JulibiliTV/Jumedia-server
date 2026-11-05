@@ -128,7 +128,7 @@ func (s *Server) sourceList(c *Ctx, admin bool) (any, error) {
 	}
 	return map[string]any{"list": Page(list, pn, ps), "page": map[string]any{"pn": pn, "ps": ps, "total": len(list)}, "official": official}, nil
 }
-func (s *Server) selectedSource(c *Ctx, admin, optional, systemOnly bool) (*store.DataSource, error) {
+func (s *Server) selectedSource(c *Ctx, admin, optional bool) (*store.DataSource, error) {
 	if optional && c.P["id"] == "" {
 		return nil, nil
 	}
@@ -139,7 +139,7 @@ func (s *Server) selectedSource(c *Ctx, admin, optional, systemOnly bool) (*stor
 	if e != nil {
 		return nil, e
 	}
-	if (!admin && (ds.MID != c.Me.MID || ds.System)) || (admin && systemOnly && !ds.System) {
+	if !admin && (ds.MID != c.Me.MID || ds.System) {
 		return nil, Fail(-404, "数据源不存在")
 	}
 	return ds, nil
@@ -159,7 +159,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 		return nil, Fail(-403, "站点未开放个人数据源")
 	}
 	optional := action == "test" || action == "save"
-	ds, e := s.selectedSource(c, admin, optional, optional)
+	ds, e := s.selectedSource(c, admin, optional)
 	if e != nil {
 		return nil, e
 	}
@@ -218,7 +218,11 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			return nil, e
 		}
 	}
-	client, e := emby.NewDataSource(address, username, password, 0, admin || Truthy(settings["dataSourcePrivateNetwork"]))
+	system := admin
+	if ds != nil {
+		system = ds.System
+	}
+	client, e := emby.NewDataSource(address, username, password, 0, system || Truthy(settings["dataSourcePrivateNetwork"]))
 	if e != nil {
 		return nil, Fail(-400, e.Error())
 	}
@@ -275,7 +279,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: "emby", AutoSync: true, ProxyPlayback: true, Ctime: time.Now().Unix()}
 		}
 		var count int
-		if e := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM data_sources WHERE mid=? AND system=? AND server_id=? AND username=? AND id<>?", mid, store.BoolInt(admin), info.ServerID, username, ds.ID).Scan(&count); e != nil {
+		if e := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM data_sources WHERE mid=? AND system=? AND server_id=? AND username=? AND id<>?", mid, store.BoolInt(ds.System), info.ServerID, username, ds.ID).Scan(&count); e != nil {
 			return e
 		}
 		if count > 0 {
@@ -332,7 +336,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			action = "修改数据源"
 		}
 		target := ds.Name
-		if admin {
+		if ds.System {
 			target += "（系统）"
 		}
 		return s.LogTx(ctx, tx, c.Me.MID, action, target)
