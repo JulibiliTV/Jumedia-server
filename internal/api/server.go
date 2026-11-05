@@ -278,5 +278,9 @@ func (s *Server) fallback(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// Documents and worker scripts need matching isolation policies for the
+	// player's shared-memory pipelines. Public cross-origin images remain usable.
+	w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+	w.Header().Set("Cross-Origin-Embedder-Policy", "credentialless")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 }

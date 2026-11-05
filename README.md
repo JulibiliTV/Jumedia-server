@@ -138,6 +138,8 @@ JUMEDIA_WEB_DIR=../Jumedia-web/dist go run ./cmd/jumedia
 
 服务本身只监听 HTTP。对外提供服务时，请在前面部署 HTTPS 反向代理，并设置 `JUMEDIA_PUBLIC_ORIGIN`（或后台的公开地址），非标准端口需要写明，例如 `https://media.example.test:8443`。
 
+网页托管响应包含 `Cross-Origin-Opener-Policy: same-origin` 和 `Cross-Origin-Embedder-Policy: credentialless`，让网页播放器在安全上下文中使用共享内存和多线程处理高负载媒体。反向代理应保留这两个响应头；独立托管网页时需为页面和 Worker 脚本设置相同的响应头。
+
 **电视客户端必须通过 HTTPS 访问**：它固定用 `wss://` 连接直播聊天，不会退回 `ws://`。代理需要为 `/sub` 转发 WebSocket 升级，例如 Nginx：
 
 ```nginx

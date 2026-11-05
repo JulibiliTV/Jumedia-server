@@ -180,6 +180,18 @@ func TestOriginCORSAndStatic(t *testing.T) {
 		if w.Code != tc.status || w.Body.String() != tc.body {
 			t.Fatalf("%s: %d %q", tc.path, w.Code, w.Body.String())
 		}
+		if tc.path == "/video/BV1" || tc.path == "/app.js" {
+			if w.Header().Get("Cross-Origin-Opener-Policy") != "same-origin" || w.Header().Get("Cross-Origin-Embedder-Policy") != "credentialless" {
+				t.Fatalf("player document/worker isolation missing for %s: %v", tc.path, w.Header())
+			}
+			cached := httptest.NewRequest("GET", tc.path, nil)
+			cached.Header.Set("If-Modified-Since", w.Header().Get("Last-Modified"))
+			w = httptest.NewRecorder()
+			s.ServeHTTP(w, cached)
+			if w.Code != http.StatusNotModified || w.Header().Get("Cross-Origin-Embedder-Policy") != "credentialless" || w.Header().Get("Cross-Origin-Opener-Policy") != "same-origin" {
+				t.Fatalf("cached player asset lost isolation for %s: %d %v", tc.path, w.Code, w.Header())
+			}
+		}
 	}
 }
 
