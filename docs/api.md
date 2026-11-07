@@ -16,3 +16,14 @@
 ## 弹幕分段
 
 分段接口使用 protobuf。`X-Jumedia-Danmaku-Pending: true` 表示服务端正在获取弹幕，客户端每 2 秒重新请求，直到获取完成。缺少此响应头时按已完成处理。
+
+## 媒体数据源
+
+个人与管理端的 `datasource/test`、`datasource/save` 均接受 `type=emby` 或 `type=jellyfin`。新建时省略 `type` 默认使用 Emby，编辑时省略则沿用已保存的类型。已保存的数据源类型固定。
+
+保存时传入 `sync_now=false` 表示仅保存连接，省略时保留立即同步行为。`proxy_playback` 控制代理播放，编辑时省略此字段会保留原设置。
+
+| 个人媒体库操作 | 请求 | 参数 |
+| --- | --- | --- |
+| 浏览 | `GET /x/web/datasource/items` | `id`、`library`、`keyword`、`pn`、`ps` |
+| 导入 | `POST /x/web/datasource/import` | `id`、`library`、JSON 字符串数组 `item_ids` 和会话 `csrf` |

@@ -30,7 +30,7 @@ func TestSyncRequestBudget(t *testing.T) {
 		fmt.Fprint(w, `{}`)
 	}))
 	defer server.Close()
-	c, err := newSourceSyncClient(server.URL, "fixture", "", true, 5, 2)
+	c, err := newSourceSyncClient("emby", server.URL, "fixture", "", true, 5, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestSyncRequestRetries(t *testing.T) {
 				fmt.Fprint(w, `{"AccessToken":"token","User":{"Id":"user"}}`)
 			}))
 			defer server.Close()
-			c, err := newSourceSyncClient(server.URL, "fixture", "", true, 50, 2)
+			c, err := newSourceSyncClient("emby", server.URL, "fixture", "", true, 50, 2)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -138,7 +138,7 @@ func TestSyncRequestRetries(t *testing.T) {
 func TestSyncRequestCancellationAndRetryAfter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Header().Set("Retry-After", "120"); w.WriteHeader(429) }))
 	defer server.Close()
-	c, err := newSourceSyncClient(server.URL, "fixture", "", true, 1, 1)
+	c, err := newSourceSyncClient("emby", server.URL, "fixture", "", true, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestSyncUnauthorizedRenewal(t *testing.T) {
 		fmt.Fprint(w, `{"Items":[]}`)
 	}))
 	defer server.Close()
-	c, err := newSourceSyncClient(server.URL, "fixture", "", true, 50, 2)
+	c, err := newSourceSyncClient("emby", server.URL, "fixture", "", true, 50, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestSyncRetryAfterDelays(t *testing.T) {
 		t.Run(raw, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Header().Set("Retry-After", raw); w.WriteHeader(429) }))
 			defer server.Close()
-			c, err := newSourceSyncClient(server.URL, "fixture", "", true, 50, 1)
+			c, err := newSourceSyncClient("emby", server.URL, "fixture", "", true, 50, 1)
 			if err != nil {
 				t.Fatal(err)
 			}

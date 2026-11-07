@@ -27,6 +27,7 @@ const sourceSyncPage = 100
 // Keep this private to the datasource domain until the shared Emby client has a
 // request-policy interface (including authentication and response-body reads).
 type sourceSyncClient struct {
+	provider                 emby.Provider
 	base, username, password string
 	http                     *http.Client
 	slots, turn, auth        chan struct{}
@@ -52,11 +53,11 @@ func (s *Server) sourceSyncClient(ctx context.Context, ds *store.DataSource, set
 	if err != nil {
 		return nil, err
 	}
-	return newSourceSyncClient(ds.URL, ds.Username, password, ds.System || Truthy(settings["dataSourcePrivateNetwork"]), sourceSyncSetting(settings, "dataSourceSyncRate", 5, 50), sourceSyncSetting(settings, "dataSourceSyncConcurrency", 2, 8))
+	return newSourceSyncClient(emby.Provider(ds.Type), ds.URL, ds.Username, password, ds.System || Truthy(settings["dataSourcePrivateNetwork"]), sourceSyncSetting(settings, "dataSourceSyncRate", 5, 50), sourceSyncSetting(settings, "dataSourceSyncConcurrency", 2, 8))
 }
 
-func newSourceSyncClient(address, username, password string, allowPrivate bool, rate, concurrency int) (*sourceSyncClient, error) {
-	base, err := emby.NormalizeBase(address)
+func newSourceSyncClient(provider emby.Provider, address, username, password string, allowPrivate bool, rate, concurrency int) (*sourceSyncClient, error) {
+	base, err := provider.NormalizeBase(address)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func newSourceSyncClient(address, username, password string, allowPrivate bool, 
 		}
 	}
 	transport := &http.Transport{DialContext: dialer.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second}
-	return &sourceSyncClient{base: base, username: username, password: password,
+	return &sourceSyncClient{provider: provider, base: base, username: username, password: password,
 		http:  &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 		slots: make(chan struct{}, concurrency), turn: make(chan struct{}, 1), auth: make(chan struct{}, 1), interval: time.Second / time.Duration(rate), sleep: sourceSyncSleep}, nil
 }
@@ -120,15 +121,16 @@ func (c *sourceSyncClient) acquire(ctx context.Context) error {
 }
 
 type sourceSyncHTTPError struct {
+	provider   emby.Provider
 	status     int
 	retryAfter time.Duration
 }
 
 func (e *sourceSyncHTTPError) Error() string {
 	if e.status == 401 {
-		return "Emby 用户名或密码错误"
+		return e.provider.Name() + " 用户名或密码错误"
 	}
-	return fmt.Sprintf("Emby 返回 HTTP %d", e.status)
+	return fmt.Sprintf("%s 返回 HTTP %d", e.provider.Name(), e.status)
 }
 func sourceSyncRetry(err error, attempt int) (time.Duration, bool) {
 	var status *sourceSyncHTTPError
@@ -160,12 +162,9 @@ func (c *sourceSyncClient) attempt(ctx context.Context, method, path string, q u
 	if err != nil {
 		return err
 	}
-	if token != "" {
-		req.Header.Set("X-Emby-Token", token)
-	}
+	c.provider.AuthorizeHeader(req.Header, token)
 	if method == "POST" {
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Emby-Authorization", `MediaBrowser Client="Jumedia", Device="Jumedia Server", DeviceId="`+emby.DeviceID+`", Version="0.1.0"`)
 	}
 	res, err := c.http.Do(req)
 	if err != nil {
@@ -183,7 +182,7 @@ func (c *sourceSyncClient) attempt(ctx context.Context, method, path string, q u
 		if n, e := strconv.ParseFloat(res.Header.Get("Retry-After"), 64); e == nil && n > 0 {
 			retryAfter = time.Duration(min(n, 60) * float64(time.Second))
 		}
-		return &sourceSyncHTTPError{res.StatusCode, retryAfter}
+		return &sourceSyncHTTPError{provider: c.provider, status: res.StatusCode, retryAfter: retryAfter}
 	}
 	b, err := io.ReadAll(io.LimitReader(res.Body, (32<<20)+1))
 	if ctx.Err() != nil {
@@ -193,10 +192,10 @@ func (c *sourceSyncClient) attempt(ctx context.Context, method, path string, q u
 		return emby.ErrNetwork
 	}
 	if len(b) > 32<<20 {
-		return errors.New("Emby JSON 响应超过 32 MB")
+		return errors.New(c.provider.Name() + " JSON 响应超过 32 MB")
 	}
 	if json.Unmarshal(b, out) != nil {
-		return errors.New("Emby 返回无效 JSON")
+		return errors.New(c.provider.Name() + " 返回无效 JSON")
 	}
 	return nil
 }
@@ -247,7 +246,7 @@ func (c *sourceSyncClient) authorize(ctx context.Context, rejected string) (stri
 		return "", "", &sourceSyncLoginError{err}
 	}
 	if result.AccessToken == "" || result.User.ID == "" {
-		return "", "", &sourceSyncLoginError{&sourceSyncHTTPError{status: 401}}
+		return "", "", &sourceSyncLoginError{&sourceSyncHTTPError{provider: c.provider, status: 401}}
 	}
 	c.token, c.user = result.AccessToken, result.User.ID
 	return c.user, c.token, nil
@@ -274,7 +273,8 @@ func (c *sourceSyncClient) Libraries(ctx context.Context) ([]emby.Library, error
 	var result struct {
 		Items []struct{ ID, Name, CollectionType string }
 	}
-	err := c.get(ctx, func(user string) string { return "/Users/" + url.PathEscape(user) + "/Views" }, nil, &result)
+	q := url.Values{}
+	err := c.get(ctx, func(user string) string { return c.provider.UserPath(user, "Views", q) }, q, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -304,19 +304,37 @@ func (c *sourceSyncClient) listPage(ctx context.Context, library string, start i
 }
 func (c *sourceSyncClient) browsePage(ctx context.Context, library, keyword string, start, limit int, ids []string) (sourceSyncItems, error) {
 	var page sourceSyncItems
-	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {"Path,Overview,Genres,PremiereDate,DateCreated,MediaSources,RunTimeTicks"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(limit)}}
+	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {c.provider.ItemFields()}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(limit)}}
 	if keyword != "" {
 		q.Set("SearchTerm", keyword)
 	}
 	if len(ids) > 0 {
 		q.Set("Ids", strings.Join(ids, ","))
 	}
-	err := c.get(ctx, func(user string) string { return "/Users/" + url.PathEscape(user) + "/Items" }, q, &page)
+	err := c.get(ctx, func(user string) string { return c.provider.UserPath(user, "Items", q) }, q, &page)
 	return page, err
 }
+func (c *sourceSyncClient) hasAncestor(ctx context.Context, item, library string) (bool, error) {
+	var ancestors []struct{ ID string }
+	q := url.Values{}
+	err := c.get(ctx, func(user string) string {
+		q.Set("UserId", user)
+		return "/Items/" + url.PathEscape(item) + "/Ancestors"
+	}, q, &ancestors)
+	if err != nil {
+		return false, err
+	}
+	for _, parent := range ancestors {
+		if parent.ID == library {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (c *sourceSyncClient) Episodes(ctx context.Context, id string) ([]emby.Item, error) {
 	var result struct{ Items []emby.Item }
-	q := url.Values{"Fields": {"Path,Overview,MediaSources,PremiereDate,DateCreated,RunTimeTicks"}}
+	q := url.Values{"Fields": {c.provider.ItemFields()}}
 	err := c.get(ctx, func(user string) string { q.Set("UserId", user); return "/Shows/" + url.PathEscape(id) + "/Episodes" }, q, &result)
 	return result.Items, err
 }

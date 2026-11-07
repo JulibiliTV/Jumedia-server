@@ -175,14 +175,27 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 	case "delete":
 		return nil, s.deleteSource(c, ds)
 	}
+	provider := emby.Provider(c.P["type"])
+	if provider == "" {
+		provider = emby.Emby
+		if ds != nil {
+			provider = emby.Provider(ds.Type)
+		}
+	}
+	if provider != emby.Emby && provider != emby.Jellyfin {
+		return nil, Fail(-400, "不支持的数据源类型")
+	}
+	if ds != nil && string(provider) != ds.Type {
+		return nil, Fail(-400, "已保存的数据源不能更改类型")
+	}
 	address, username := strings.TrimSpace(c.P["url"]), strings.TrimSpace(c.P["username"])
 	if address == "" {
-		return nil, Fail(-400, "请填写 Emby 服务器地址")
+		return nil, Fail(-400, "请填写 "+provider.Name()+" 服务器地址")
 	}
 	if username == "" {
-		return nil, Fail(-400, "请填写 Emby 用户名")
+		return nil, Fail(-400, "请填写 "+provider.Name()+" 用户名")
 	}
-	if _, e = emby.NormalizeBase(address); e != nil {
+	if _, e = provider.NormalizeBase(address); e != nil {
 		return nil, Fail(-400, e.Error())
 	}
 	password := c.P["password"]
@@ -224,7 +237,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 	if ds != nil {
 		system = ds.System
 	}
-	client, e := emby.NewDataSource(address, username, password, 0, system || Truthy(settings["dataSourcePrivateNetwork"]))
+	client, e := provider.NewDataSource(address, username, password, 0, system || Truthy(settings["dataSourcePrivateNetwork"]))
 	if e != nil {
 		return nil, Fail(-400, e.Error())
 	}
@@ -278,14 +291,14 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			if e != nil {
 				return e
 			}
-			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: "emby", AutoSync: true, ProxyPlayback: true, Status: "idle", Ctime: time.Now().Unix()}
+			ds = &store.DataSource{ID: id, MID: mid, System: admin, Type: string(provider), AutoSync: true, ProxyPlayback: true, Status: "idle", Ctime: time.Now().Unix()}
 		}
 		var count int
 		if e := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM data_sources WHERE mid=? AND system=? AND server_id=? AND username=? AND id<>?", mid, store.BoolInt(ds.System), info.ServerID, username, ds.ID).Scan(&count); e != nil {
 			return e
 		}
 		if count > 0 {
-			return Fail(-400, "已经添加过这个 Emby 账号")
+			return Fail(-400, "已经添加过这个 "+provider.Name()+" 账号")
 		}
 		libs := []store.DataSourceLibrary{}
 		selected, hasSelected := c.P["libraries"]
@@ -313,7 +326,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			name = info.ServerName
 		}
 		if name == "" {
-			name = "Emby"
+			name = provider.Name()
 		}
 		ds.Name = name
 		ds.URL = address

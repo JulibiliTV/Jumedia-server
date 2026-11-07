@@ -198,7 +198,7 @@ func (s *Server) sourceClient(ctx context.Context, ds *store.DataSource) (*emby.
 		return nil, e
 	}
 	allow := ds.System || Truthy(settings["dataSourcePrivateNetwork"])
-	key := fmt.Sprintf("%s\n%s\n%s\n%t", ds.URL, ds.Username, ds.PasswordEnc, allow)
+	key := fmt.Sprintf("%s\n%s\n%s\n%s\n%t", ds.Type, ds.URL, ds.Username, ds.PasswordEnc, allow)
 	r := s.sources
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -216,7 +216,7 @@ func (s *Server) sourceClient(ctx context.Context, ds *store.DataSource) (*emby.
 	if e != nil {
 		return nil, e
 	}
-	client, e := emby.NewDataSource(ds.URL, ds.Username, password, ds.ID, allow)
+	client, e := emby.Provider(ds.Type).NewDataSource(ds.URL, ds.Username, password, ds.ID, allow)
 	if e == nil {
 		r.clients[ds.ID] = sourceClient{key, client}
 	}
@@ -303,7 +303,7 @@ func (s *Server) launchSourceLocked(ds store.DataSource) {
 		if err != nil {
 			status = "error"
 			message = "同步失败：" + err.Error()
-			if errors.Is(err, emby.ErrPrivate) || errors.Is(err, emby.ErrNetwork) || strings.HasPrefix(err.Error(), "Emby ") {
+			if errors.Is(err, emby.ErrPrivate) || errors.Is(err, emby.ErrNetwork) || strings.HasPrefix(err.Error(), emby.Provider(ds.Type).Name()+" ") {
 				message = err.Error()
 			}
 			var partial *sourceSyncPartialError

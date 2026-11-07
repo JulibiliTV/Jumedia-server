@@ -481,7 +481,7 @@ func saveSourceSyncArchive(ctx context.Context, tx *db.Tx, ds *store.DataSource,
 		if name == "" {
 			name = ds.Name
 		}
-		a = &store.Archive{AID: aid, BVID: store.AV2BV(aid), MID: ds.MID, Ctime: m.ctime, Pubdate: m.pubdate, State: state, Copyright: 2, Source: "Emby · " + name, Chapters: []store.Chapter{}, Subtitles: []store.Subtitle{}, OriginDS: ds.ID, OriginItem: result.item, Origin: &store.ArchiveOrigin{Type: "emby", Locked: []string{}}}
+		a = &store.Archive{AID: aid, BVID: store.AV2BV(aid), MID: ds.MID, Ctime: m.ctime, Pubdate: m.pubdate, State: state, Copyright: 2, Source: emby.Provider(ds.Type).Name() + " · " + name, Chapters: []store.Chapter{}, Subtitles: []store.Subtitle{}, OriginDS: ds.ID, OriginItem: result.item, Origin: &store.ArchiveOrigin{Type: ds.Type, Locked: []string{}}}
 		// The FK requires a configured region even before the origin update.
 		a.TID = m.meta.TID
 		if e = store.InsertArchive(ctx, tx, a); e != nil {
@@ -533,7 +533,7 @@ func upsertSourceCollection(ctx context.Context, tx *db.Tx, ds *store.DataSource
 	if name == "" {
 		name = ds.Name
 	}
-	meta := store.CollectionMeta{Title: sourceClip(lib.Name, 40), Intro: "同步自 Emby「" + name + "」的媒体库", Cover: sourceImage(ds.ID, lib.ID, "Primary", "")}
+	meta := store.CollectionMeta{Title: sourceClip(lib.Name, 40), Intro: "同步自 " + emby.Provider(ds.Type).Name() + "「" + name + "」的媒体库", Cover: sourceImage(ds.ID, lib.ID, "Primary", "")}
 	var id int64
 	err := tx.QueryRowContext(ctx, "SELECT id FROM collections WHERE origin_ds=? AND origin_library=?", ds.ID, lib.ID).Scan(&id)
 	var c *store.Collection
@@ -542,7 +542,7 @@ func upsertSourceCollection(ctx context.Context, tx *db.Tx, ds *store.DataSource
 		if err != nil {
 			return err
 		}
-		c = &store.Collection{ID: id, MID: ds.MID, Kind: "season", Ctime: time.Now().Unix(), OriginDS: ds.ID, OriginLibrary: lib.ID, Origin: &store.CollectionOrigin{Type: "emby", Locked: []string{}}}
+		c = &store.Collection{ID: id, MID: ds.MID, Kind: "season", Ctime: time.Now().Unix(), OriginDS: ds.ID, OriginLibrary: lib.ID, Origin: &store.CollectionOrigin{Type: ds.Type, Locked: []string{}}}
 		if err = store.InsertCollection(ctx, tx, c); err != nil {
 			return err
 		}

@@ -407,7 +407,7 @@ func TestDataSourceAccessLimitsAndLifecycle(t *testing.T) {
 		}
 		for _, address := range []string{f.server.URL, strings.Replace(f.server.URL, "127.0.0.1", "localhost", 1)} {
 			v := sourcePost(t, s, user, "/x/web/datasource/test", url.Values{"url": {address}, "username": {"fixture"}})
-			liveFailure(t, v, -400, "站点不允许使用内网地址的 Emby 服务器")
+			liveFailure(t, v, -400, "站点不允许使用内网地址的媒体服务器")
 		}
 		assertCode(t, sourcePost(t, s, user, "/x/admin/datasource/test", url.Values{"url": {f.server.URL}, "username": {"fixture"}}), -403)
 		sourceData(t, sourcePost(t, s, admin, "/x/admin/datasource/test", url.Values{"url": {f.server.URL}, "username": {"fixture"}}))

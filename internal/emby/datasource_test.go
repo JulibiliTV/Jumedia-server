@@ -35,7 +35,7 @@ func TestDataSourceDirectAndAddressPolicy(t *testing.T) {
 		}
 	}
 	for _, tt := range []struct{ input, want string }{{" https://example.com/ ", "https://example.com/emby"}, {"https://example.com/EmBy/", "https://example.com/EmBy"}, {"http://example.com/base/?q=x#hash", "http://example.com/base/emby"}} {
-		got, e := NormalizeBase(tt.input)
+		got, e := Emby.NormalizeBase(tt.input)
 		if e != nil || got != tt.want {
 			t.Fatal(got, e)
 		}
@@ -52,7 +52,7 @@ func TestDataSourceRedirectAndJSONLimits(t *testing.T) {
 	defer target.Close()
 	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, 302) }))
 	defer redirect.Close()
-	client, e := NewDataSource(redirect.URL, "fixture", "", 1, true)
+	client, e := Emby.NewDataSource(redirect.URL, "fixture", "", 1, true)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -61,7 +61,7 @@ func TestDataSourceRedirectAndJSONLimits(t *testing.T) {
 	if e == nil || e.Error() != "Emby 返回 HTTP 302" || calls.Load() != 0 {
 		t.Fatal("redirect followed", e, calls.Load())
 	}
-	client, e = NewDataSource(redirect.URL, "fixture", "", 1, false)
+	client, e = Emby.NewDataSource(redirect.URL, "fixture", "", 1, false)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -71,10 +71,10 @@ func TestDataSourceRedirectAndJSONLimits(t *testing.T) {
 		t.Fatal("private IP dial", e)
 	}
 	var out map[string]any
-	if e = decodeJSONBody(io.MultiReader(strings.NewReader(`{}`), strings.NewReader(strings.Repeat(" ", 32<<20))), &out); e == nil || e.Error() != "Emby JSON 响应超过 32 MB" {
+	if e = Emby.decodeJSONBody(io.MultiReader(strings.NewReader(`{}`), strings.NewReader(strings.Repeat(" ", 32<<20))), &out); e == nil || e.Error() != "Emby JSON 响应超过 32 MB" {
 		t.Fatal("oversize accepted", e)
 	}
-	if e = decodeJSONBody(strings.NewReader(`{} {}`), &out); e == nil {
+	if e = Emby.decodeJSONBody(strings.NewReader(`{} {}`), &out); e == nil {
 		t.Fatal("trailing JSON accepted")
 	}
 }

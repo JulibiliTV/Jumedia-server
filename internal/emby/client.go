@@ -19,6 +19,7 @@ const DeviceID = "jumedia-server"
 var ErrUnavailable = errors.New("Emby unavailable")
 
 type Client struct {
+	provider                 Provider
 	base, username, password string
 	userID                   string
 	datasource               int64
@@ -53,7 +54,7 @@ func (c *Client) authorize(ctx context.Context, rejected string) (string, error)
 		return "", ErrUnavailable
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Emby-Authorization", `MediaBrowser Client="Jumedia", Device="Jumedia Server", DeviceId="`+DeviceID+`", Version="0.1.0"`)
+	c.provider.AuthorizeHeader(req.Header, "")
 	res, err := c.http.Do(req)
 	if err != nil {
 		return "", c.networkError(err)
@@ -66,12 +67,12 @@ func (c *Client) authorize(ctx context.Context, rejected string) (string, error)
 		}
 	}
 	if c.datasource != 0 && res.StatusCode != 200 {
-		return "", responseError(res.StatusCode)
+		return "", c.provider.responseError(res.StatusCode)
 	}
-	if res.StatusCode != 200 || decodeJSONBody(res.Body, &data) != nil || data.AccessToken == "" {
+	if res.StatusCode != 200 || c.provider.decodeJSONBody(res.Body, &data) != nil || data.AccessToken == "" {
 		c.token = ""
 		if c.datasource != 0 {
-			return "", responseError(401)
+			return "", c.provider.responseError(401)
 		}
 		return "", ErrUnavailable
 	}
@@ -93,7 +94,7 @@ func (c *Client) request(ctx context.Context, method, path string, query url.Val
 		if err != nil {
 			return nil, ErrUnavailable
 		}
-		req.Header.Set("X-Emby-Token", token)
+		c.provider.AuthorizeHeader(req.Header, token)
 		if method == "POST" {
 			req.Header.Set("Content-Type", "application/json")
 		}
@@ -133,14 +134,23 @@ func (c *Client) StreamURL(ctx context.Context, item, source, container string) 
 		return "", err
 	}
 	var profile struct{ ID string }
-	if err = c.JSON(ctx, "/Users/"+url.PathEscape(user), nil, &profile); err != nil {
+	path := "/Users/" + url.PathEscape(user)
+	if c.provider == Jellyfin {
+		path = "/Users/Me"
+	}
+	if err = c.JSON(ctx, path, nil, &profile); err != nil {
 		return "", err
 	}
 	token, err := c.authorize(ctx, "")
 	if err != nil {
 		return "", err
 	}
-	query := url.Values{"Static": {"true"}, "MediaSourceId": {source}, "DeviceId": {DeviceID}, "api_key": {token}}
+	query := url.Values{"Static": {"true"}, "MediaSourceId": {source}, "DeviceId": {DeviceID}}
+	if c.provider == Jellyfin {
+		query.Set("ApiKey", token)
+	} else {
+		query.Set("api_key", token)
+	}
 	return c.base + "/Videos/" + item + "/stream." + container + "?" + query.Encode(), nil
 }
 

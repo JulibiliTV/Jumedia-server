@@ -164,6 +164,16 @@ func (s *Server) sourceImport(c *Ctx) (any, error) {
 		if !ok || !sourceImportable(item) {
 			return nil, Fail(-400, "所选视频不存在或没有可用媒体，请刷新列表")
 		}
+		if client.provider == emby.Jellyfin {
+			// Jellyfin ignores ParentId when /Items is filtered by explicit IDs.
+			inLibrary, err := client.hasAncestor(c.Context(), item.ID, libraryID)
+			if err != nil {
+				return nil, Fail(-400, err.Error())
+			}
+			if !inLibrary {
+				return nil, Fail(-400, "所选视频不在该媒体库")
+			}
+		}
 		mirror, err := mirrorSource(c.Context(), client, ds, regions, lib, item)
 		if err != nil {
 			return nil, Fail(-400, err.Error())

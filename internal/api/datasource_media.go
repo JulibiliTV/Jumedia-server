@@ -219,7 +219,7 @@ func (s *Server) serveSourceMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	client, err := s.sourceClient(r.Context(), ds)
 	if err != nil {
-		http.Error(w, "Emby unavailable", 502)
+		http.Error(w, "Media source unavailable", 502)
 		return
 	}
 
@@ -246,18 +246,18 @@ func (s *Server) serveSourceMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, "Emby unavailable", 502)
+		http.Error(w, "Media source unavailable", 502)
 		return
 	}
 	defer res.Body.Close()
 	if image {
 		if res.StatusCode != 200 || !strings.HasPrefix(strings.ToLower(res.Header.Get("Content-Type")), "image/") {
-			http.Error(w, "Emby image unavailable", 502)
+			http.Error(w, "Media source image unavailable", 502)
 			return
 		}
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 	} else if res.StatusCode != 200 && res.StatusCode != 206 && res.StatusCode != 416 {
-		http.Error(w, "Emby unavailable", 502)
+		http.Error(w, "Media source unavailable", 502)
 		return
 	}
 	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"} {

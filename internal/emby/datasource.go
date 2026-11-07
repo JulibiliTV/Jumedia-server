@@ -16,14 +16,14 @@ import (
 	"time"
 )
 
-var ErrPrivate = errors.New("站点不允许使用内网地址的 Emby 服务器")
-var ErrNetwork = errors.New("无法连接 Emby 服务器（网络错误或服务器未开放跨域）")
+var ErrPrivate = errors.New("站点不允许使用内网地址的媒体服务器")
+var ErrNetwork = errors.New("无法连接媒体服务器（网络错误）")
 
-func responseError(status int) error {
+func (p Provider) responseError(status int) error {
 	if status == 401 {
-		return errors.New("Emby 用户名或密码错误")
+		return errors.New(p.Name() + " 用户名或密码错误")
 	}
-	return fmt.Errorf("Emby 返回 HTTP %d", status)
+	return fmt.Errorf("%s 返回 HTTP %d", p.Name(), status)
 }
 func (c *Client) networkError(err error) error {
 	if c.datasource == 0 {
@@ -34,19 +34,19 @@ func (c *Client) networkError(err error) error {
 	}
 	return ErrNetwork
 }
-func NormalizeBase(address string) (string, error) {
+func (p Provider) NormalizeBase(address string) (string, error) {
 	u, e := url.Parse(strings.TrimSpace(address))
 	if e != nil || u.Host == "" {
-		return "", errors.New("Emby 服务器地址格式不正确")
+		return "", errors.New(p.Name() + " 服务器地址格式不正确")
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", errors.New("仅支持 http / https 的 Emby 地址")
+		return "", errors.New("仅支持 http / https 的 " + p.Name() + " 地址")
 	}
 	if u.User != nil {
-		return "", errors.New("Emby 服务器地址格式不正确")
+		return "", errors.New(p.Name() + " 服务器地址格式不正确")
 	}
 	path := strings.TrimRight(u.Path, "/")
-	if !strings.HasSuffix(strings.ToLower(path), "/emby") {
+	if p != Jellyfin && !strings.HasSuffix(strings.ToLower(path), "/emby") {
 		path += "/emby"
 	}
 	u.Path = path
@@ -65,13 +65,14 @@ func PrivateIP(ip net.IP) bool {
 
 // Control runs after DNS resolution, immediately before connecting. No proxy is
 // used: an environment proxy must not bypass the destination IP policy.
-func NewDataSource(address, username, password string, id int64, allowPrivate bool) (*Client, error) {
-	base, err := NormalizeBase(address)
+func (p Provider) NewDataSource(address, username, password string, id int64, allowPrivate bool) (*Client, error) {
+	base, err := p.NormalizeBase(address)
 	if err != nil {
 		return nil, err
 	}
 	c := New("", username, password)
 	c.base = base
+	c.provider = p
 	c.datasource = id
 	if id == 0 {
 		c.datasource = -1
@@ -99,9 +100,9 @@ func (c *Client) JSON(ctx context.Context, path string, q url.Values, out any) e
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return responseError(res.StatusCode)
+		return c.provider.responseError(res.StatusCode)
 	}
-	return decodeJSONBody(res.Body, out)
+	return c.provider.decodeJSONBody(res.Body, out)
 }
 
 type Library struct {
@@ -133,7 +134,7 @@ func (c *Client) user(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.userID == "" {
-		return "", errors.New("Emby 用户名或密码错误")
+		return "", c.provider.responseError(401)
 	}
 	return c.userID, nil
 }
@@ -145,7 +146,8 @@ func (c *Client) Libraries(ctx context.Context) ([]Library, error) {
 	var raw struct {
 		Items []struct{ ID, Name, CollectionType string }
 	}
-	if err = c.JSON(ctx, "/Users/"+url.PathEscape(user)+"/Views", nil, &raw); err != nil {
+	q := url.Values{}
+	if err = c.JSON(ctx, c.provider.UserPath(user, "Views", q), q, &raw); err != nil {
 		return nil, err
 	}
 	out := []Library{}
@@ -248,8 +250,8 @@ func (c *Client) Items(ctx context.Context, library string) ([]Item, error) {
 			Items            []Item
 			TotalRecordCount int
 		}
-		q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {"Overview,Genres,PremiereDate,DateCreated,MediaSources,RunTimeTicks"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {"200"}}
-		if err = c.JSON(ctx, "/Users/"+url.PathEscape(user)+"/Items", q, &page); err != nil {
+		q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {c.provider.ItemFields()}, "StartIndex": {strconv.Itoa(start)}, "Limit": {"200"}}
+		if err = c.JSON(ctx, c.provider.UserPath(user, "Items", q), q, &page); err != nil {
 			return nil, err
 		}
 		out = append(out, page.Items...)
@@ -265,23 +267,23 @@ func (c *Client) Episodes(ctx context.Context, id string) ([]Item, error) {
 		return nil, err
 	}
 	var page struct{ Items []Item }
-	err = c.JSON(ctx, "/Shows/"+url.PathEscape(id)+"/Episodes", url.Values{"UserId": {user}, "Fields": {"Path,Overview,MediaSources,PremiereDate,DateCreated,RunTimeTicks"}}, &page)
+	err = c.JSON(ctx, "/Shows/"+url.PathEscape(id)+"/Episodes", url.Values{"UserId": {user}, "Fields": {c.provider.ItemFields()}}, &page)
 	return page.Items, err
 }
 func (c *Client) Image(ctx context.Context, item, kind, tag string) (*http.Response, error) {
 	return c.request(ctx, "GET", "/Items/"+url.PathEscape(item)+"/Images/"+kind, url.Values{"tag": {tag}, "maxWidth": {"1280"}}, nil)
 }
 
-func decodeJSONBody(body io.Reader, out any) error {
+func (p Provider) decodeJSONBody(body io.Reader, out any) error {
 	b, err := io.ReadAll(io.LimitReader(body, (32<<20)+1))
 	if err != nil {
 		return ErrNetwork
 	}
 	if len(b) > 32<<20 {
-		return errors.New("Emby JSON 响应超过 32 MB")
+		return errors.New(p.Name() + " JSON 响应超过 32 MB")
 	}
 	if json.Unmarshal(b, out) != nil {
-		return errors.New("Emby 返回无效 JSON")
+		return errors.New(p.Name() + " 返回无效 JSON")
 	}
 	return nil
 }

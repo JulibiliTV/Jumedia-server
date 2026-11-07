@@ -43,7 +43,7 @@ func (s *Server) playbackMediaURL(c *Ctx, media string) (string, error) {
 	c.W.Header().Set("Cache-Control", "no-store")
 	link, err := client.StreamURL(c.Context(), item, source, container)
 	if err != nil {
-		return "", Fail(-502, "无法获取 Emby 播放地址，请检查数据源连接")
+		return "", Fail(-502, "无法获取数据源播放地址，请检查数据源连接")
 	}
 	return link, nil
 }

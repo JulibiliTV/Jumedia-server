@@ -10,7 +10,7 @@ import (
 	"jumedia-server/internal/emby"
 )
 
-// Only existing Emby media can enqueue a provider request. Imported pages and
+// Only existing data-source media can enqueue a provider request. Imported pages and
 // episodes can have no sync-owned archive, so use their original media reference.
 func (s *Server) requestDandanplay(ctx context.Context, cid int64) (bool, error) {
 	var aid, originDS int64
@@ -33,7 +33,7 @@ func (s *Server) requestDandanplay(ctx context.Context, cid int64) (bool, error)
 		return false, nil
 	}
 	var exists int
-	if err = s.Store.DB.QueryRowContext(ctx, "SELECT count(*) FROM data_sources WHERE id=? AND type='emby'", ds).Scan(&exists); err != nil || exists == 0 {
+	if err = s.Store.DB.QueryRowContext(ctx, "SELECT count(*) FROM data_sources WHERE id=? AND type IN ('emby','jellyfin')", ds).Scan(&exists); err != nil || exists == 0 {
 		return false, err
 	}
 	settings, err := s.Store.Settings(ctx)
@@ -85,7 +85,7 @@ func (s *Server) requestDandanplay(ctx context.Context, cid int64) (bool, error)
 	return pending, err
 }
 
-const dandanplayCurrentMedia = `EXISTS (SELECT 1 FROM data_sources ds WHERE ds.type='emby'
+const dandanplayCurrentMedia = `EXISTS (SELECT 1 FROM data_sources ds WHERE ds.type IN ('emby','jellyfin')
 	AND dandanplay_sync.media LIKE 'embyds:' || CAST(ds.id AS TEXT) || ':%')
 	AND (EXISTS (SELECT 1 FROM archive_pages p JOIN archives a ON a.aid=p.aid
 	WHERE p.cid=dandanplay_sync.cid AND p.media=dandanplay_sync.media AND a.aid=dandanplay_sync.archive_aid AND a.state NOT IN (-100,-6))
