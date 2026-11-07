@@ -82,6 +82,57 @@ func communityBinary(t *testing.T, s *Server, path string, session *store.Sessio
 	}
 	return w.Body.Bytes()
 }
+func TestCommunityDanmakuSettings(t *testing.T) {
+	testServers(t, func(t *testing.T, s *Server) {
+		user := login(t, s, "jumedia", "admin123")
+		defaults := communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view", nil))
+		cfg := communityFields(t, defaults[10].data)
+		if defaults[1].value != 1 || cfg[1].value != 1 || cfg[2].value != 0 || cfg[3].value != 1 || cfg[12].value != 50 || math.Float32frombits(binary.LittleEndian.Uint32(cfg[11].data)) != .8 {
+			t.Fatal(cfg)
+		}
+		settings := url.Values{"dm_switch": {"false"}, "opacity": {"0.3"}, "unknown": {"ignored"}}
+		assertCode(t, communityWrite(t, s, user, "/x/v2/dm/web/config", settings), 0)
+		communityFailure(t, communityWrite(t, s, user, "/x/v2/dm/web/config", settings), 23004, "设置未变更")
+		// Comparing only an already equal subset still succeeds in the Mock, since
+		// omitted previous keys differ from undefined in the submitted object.
+		assertCode(t, communityWrite(t, s, user, "/x/v2/dm/web/config", url.Values{"opacity": {"0.3"}}), 0)
+		cfg = communityFields(t, communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view", user))[10].data)
+		if cfg[1].value != 0 || math.Float32frombits(binary.LittleEndian.Uint32(cfg[11].data)) != .3 {
+			t.Fatal(cfg)
+		}
+		view := func() map[int]communityProtoField {
+			return communityFields(t, communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view?type=1&oid=1", user))[10].data)
+		}
+		save := func(values url.Values) {
+			assertCode(t, communityWrite(t, s, user, "/x/v2/dm/web/config", values), 0)
+		}
+		if cfg[28].value != 3 || cfg[25].value != 50 || cfg[24].value != 1 {
+			t.Fatal("legacy settings did not populate modern fields", cfg)
+		}
+		save(url.Values{"dm_switch": {"false"}, "dm_switch_state": {"2"}, "dmarea": {"70"}, "dm_area_v2": {"25"},
+			"blocktop_bottom": {"false"}, "blocktop": {"true"}, "preventshade": {"false"}})
+		save(url.Values{"dm_switch": {"true"}, "dmask": {"false"}})
+		cfg = view()
+		if cfg[1].value != 1 || cfg[28].value != 2 || cfg[12].value != 25 || cfg[25].value != 25 ||
+			cfg[4].value != 0 || cfg[6].value != 0 || cfg[24].value != 0 || cfg[9].value != 0 || cfg[10].value != 0 {
+			t.Fatal("modern write or partial merge", cfg)
+		}
+		for key, value := range map[string]string{"dm_area_v2": "101", "dm_switch_state": "0", "blocktop_bottom": "maybe"} {
+			assertCode(t, communityWrite(t, s, user, "/x/v2/dm/web/config", url.Values{key: {value}, "opacity": {"0.9"}}), -400)
+		}
+		save(url.Values{"dm_switch": {"false"}, "dmarea": {"0"}, "blockbottom": {"true"}})
+		cfg = view()
+		if cfg[28].value != 3 || cfg[25].value != 0 || cfg[12].value != 0 || cfg[4].value != 0 ||
+			cfg[6].value != 1 || cfg[24].value != 0 || math.Float32frombits(binary.LittleEndian.Uint32(cfg[11].data)) != .3 {
+			t.Fatal("legacy partial update or invalid write", cfg)
+		}
+		guestCfg := communityFields(t, communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view", nil))[10].data)
+		if guestCfg[1].value != 1 || guestCfg[28].value != 1 || guestCfg[25].value != 50 {
+			t.Fatal("config leaked to guest")
+		}
+	})
+}
+
 func TestCommunityDanmaku(t *testing.T) {
 	testServers(t, func(t *testing.T, s *Server) {
 		user := login(t, s, "jumedia", "admin123")
@@ -134,25 +185,6 @@ func TestCommunityDanmaku(t *testing.T) {
 			communityFailure(t, communityWrite(t, s, user, "/x/v2/dm/post", url.Values{"msg": {msg}}), 36700, "弹幕内容需在 1–100 字之间")
 		}
 		assertCode(t, communityWrite(t, s, user, "/x/v2/dm/post", url.Values{"msg": {strings.Repeat("😀", 50)}, "oid": {fmt.Sprint(cid)}}), 0)
-		defaults := communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view", nil))
-		cfg := communityFields(t, defaults[10].data)
-		if defaults[1].value != 1 || cfg[1].value != 1 || cfg[2].value != 0 || cfg[3].value != 1 || cfg[12].value != 50 || math.Float32frombits(binary.LittleEndian.Uint32(cfg[11].data)) != .8 {
-			t.Fatal(cfg)
-		}
-		settings := url.Values{"dm_switch": {"false"}, "opacity": {"0.3"}, "unknown": {"ignored"}}
-		assertCode(t, communityWrite(t, s, user, "/x/v2/dm/web/config", settings), 0)
-		communityFailure(t, communityWrite(t, s, user, "/x/v2/dm/web/config", settings), 23004, "设置未变更")
-		// Comparing only an already equal subset still succeeds in the Mock, since
-		// omitted previous keys differ from undefined in the submitted object.
-		assertCode(t, communityWrite(t, s, user, "/x/v2/dm/web/config", url.Values{"opacity": {"0.3"}}), 0)
-		cfg = communityFields(t, communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view", user))[10].data)
-		if cfg[1].value != 0 || math.Float32frombits(binary.LittleEndian.Uint32(cfg[11].data)) != .3 {
-			t.Fatal(cfg)
-		}
-		guestCfg := communityFields(t, communityFields(t, communityBinary(t, s, "/x/v2/dm/web/view", nil))[10].data)
-		if guestCfg[1].value != 1 {
-			t.Fatal("config leaked to guest")
-		}
 		filter := communityData(t, get(t, s, "/x/dm/filter/user", user))
 		if len(filter["rule"].([]any)) != 0 || len(filter) != 3 {
 			t.Fatal(filter)

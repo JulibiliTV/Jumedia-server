@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"maps"
 	"strconv"
 	"time"
 
@@ -49,6 +50,7 @@ func (s *Server) communitySeedDanmaku(c *Ctx, cid int64) error {
 	return seed.SeedDanmaku(c.Context(), s.Store, cid, duration)
 }
 func (s *Server) communityDMView(c *Ctx) (any, error) {
+	c.W.Header().Set("Cache-Control", "private, no-store")
 	settings := map[string]string{}
 	if c.Me != nil {
 		rows, e := s.Store.ListDMConfig(c.Context(), "WHERE mid=?", c.Me.MID)
@@ -65,6 +67,33 @@ func (s *Server) communityDMConfig(c *Ctx) (any, error) {
 	u, e := c.CSRF()
 	if e != nil {
 		return nil, e
+	}
+	patch := map[string]string{}
+	for _, k := range []string{"dm_switch", "blockscroll", "blocktop", "blockbottom", "blockcolor", "opacity", "fontsize", "speedplus", "dmarea", "preventshade", "ai_switch", "ai_level", "dmask"} {
+		if v, ok := c.P[k]; ok {
+			patch[k] = v
+		}
+	}
+	// Store one area and two fixed-type flags so older clients see new writes.
+	if raw, ok := c.P["dm_area_v2"]; ok {
+		area, err := strconv.Atoi(raw)
+		if err != nil || area < 0 || area > 100 {
+			return nil, Fail(-400, "弹幕显示区域无效")
+		}
+		patch["dmarea"] = strconv.Itoa(area)
+	}
+	if fixed, ok := c.P["blocktop_bottom"]; ok {
+		if fixed != "true" && fixed != "false" {
+			return nil, Fail(-400, "固定弹幕开关无效")
+		}
+		patch["blocktop"], patch["blockbottom"] = fixed, fixed
+	}
+	if state, ok := c.P["dm_switch_state"]; ok {
+		if state != "1" && state != "2" && state != "3" {
+			return nil, Fail(-400, "弹幕开关状态无效")
+		}
+		patch["dm_switch_state"] = state
+		patch["dm_switch"] = strconv.FormatBool(state != "3")
 	}
 	e = s.Store.DB.WithTx(c.Context(), func(tx *db.Tx) error {
 		// Ensure a row exists, then lock it through a portable no-op UPDATE before
@@ -86,23 +115,22 @@ func (s *Server) communityDMConfig(c *Ctx) (any, error) {
 		if prev == nil {
 			prev = map[string]string{}
 		}
-		keys := []string{"dm_switch", "blockscroll", "blocktop", "blockbottom", "blockcolor", "opacity", "fontsize", "speedplus", "dmarea", "preventshade", "ai_switch", "ai_level", "dmask"}
-		same := true
-		for _, k := range keys {
-			v, ok := c.P[k]
-			old, exists := prev[k]
-			if ok != exists || v != old {
-				same = false
+		// Legacy clients can send a complete form for a single edit. A still-on
+		// Boolean should not turn an existing reduced mode back into normal mode.
+		if enabled, ok := patch["dm_switch"]; ok && patch["dm_switch_state"] == "" && prev["dm_switch_state"] != "" {
+			switch {
+			case enabled != "true":
+				patch["dm_switch_state"] = "3"
+			case prev["dm_switch_state"] == "2":
+				patch["dm_switch_state"] = "2"
+			default:
+				patch["dm_switch_state"] = "1"
 			}
 		}
-		if same {
+		if maps.Equal(prev, patch) {
 			return Fail(23004, "设置未变更")
 		}
-		for _, k := range keys {
-			if v, ok := c.P[k]; ok {
-				prev[k] = v
-			}
-		}
+		maps.Copy(prev, patch)
 		b, e := json.Marshal(prev)
 		if e != nil {
 			return e

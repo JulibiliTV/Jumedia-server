@@ -94,7 +94,19 @@ func WebView(settings map[string]string) []byte {
 		}
 		return number(v)
 	}
-	cfg := (&Writer{}).Bool(1, b("dm_switch", true)).Bool(2, b("ai_switch", false)).Uint(3, int64(n("ai_level", 1))).Bool(4, b("blocktop", true)).Bool(5, b("blockscroll", true)).Bool(6, b("blockbottom", true)).Bool(7, b("blockcolor", true)).Bool(9, b("preventshade", true)).Bool(10, b("dmask", true)).Float(11, float32(f("opacity", .8))).Uint(12, int64(n("dmarea", 50))).Float(13, float32(f("speedplus", 1))).Float(14, float32(f("fontsize", 1)))
+	state := int64(1)
+	if !b("dm_switch", true) {
+		state = 3
+	} else if settings["dm_switch_state"] == "2" {
+		state = 2
+	}
+	area := int64(n("dmarea", 50))
+	top, bottom := b("blocktop", true), b("blockbottom", true)
+	cfg := (&Writer{}).Bool(1, state != 3).Bool(2, b("ai_switch", false)).Uint(3, int64(n("ai_level", 1))).
+		Bool(4, top).Bool(5, b("blockscroll", true)).Bool(6, bottom).Bool(7, b("blockcolor", true)).
+		Bool(9, b("preventshade", true)).Bool(10, b("dmask", true)).Float(11, float32(f("opacity", .8))).
+		Uint(12, area).Float(13, float32(f("speedplus", 1))).Float(14, float32(f("fontsize", 1))).
+		Bool(24, top && bottom).Uint(25, area).Uint(28, state)
 	return (&Writer{}).Uint(1, 1).Bytes(10, cfg.Finish()).Finish()
 }
 
