@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"jumedia-server/internal/emby"
+	"jumedia-server/internal/fntv"
 	"jumedia-server/internal/store"
 )
 
@@ -27,6 +28,7 @@ const sourceSyncPage = 100
 // Keep this private to the datasource domain until the shared Emby client has a
 // request-policy interface (including authentication and response-body reads).
 type sourceSyncClient struct {
+	fn                       *fntv.Client
 	provider                 emby.Provider
 	base, username, password string
 	http                     *http.Client
@@ -72,11 +74,29 @@ func newSourceSyncClient(provider emby.Provider, address, username, password str
 		}
 	}
 	transport := &http.Transport{DialContext: dialer.DialContext, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 10 * time.Second, IdleConnTimeout: 90 * time.Second}
-	return &sourceSyncClient{provider: provider, base: base, username: username, password: password,
+	c := &sourceSyncClient{provider: provider, base: base, username: username, password: password,
 		http:  &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-		slots: make(chan struct{}, concurrency), turn: make(chan struct{}, 1), auth: make(chan struct{}, 1), interval: time.Second / time.Duration(rate), sleep: sourceSyncSleep}, nil
+		slots: make(chan struct{}, concurrency), turn: make(chan struct{}, 1), auth: make(chan struct{}, 1), interval: time.Second / time.Duration(rate), sleep: sourceSyncSleep}
+	if provider == emby.FnTV {
+		c.fn, err = fntv.New(address, username, password, allowPrivate)
+		if err != nil {
+			return nil, err
+		}
+		c.fn.RequestGate = func(ctx context.Context) (func(), error) {
+			if err := c.acquire(ctx); err != nil {
+				return nil, err
+			}
+			return func() { <-c.slots }, nil
+		}
+	}
+	return c, nil
 }
-func (c *sourceSyncClient) close() { c.http.CloseIdleConnections() }
+func (c *sourceSyncClient) close() {
+	c.http.CloseIdleConnections()
+	if c.fn != nil {
+		c.fn.Close()
+	}
+}
 func sourceSyncSleep(ctx context.Context, d time.Duration) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -225,7 +245,7 @@ func (e *sourceSyncLoginError) Error() string { return e.err.Error() }
 func (e *sourceSyncLoginError) Unwrap() error { return e.err }
 func sourceSyncLoginFailed(err error) bool {
 	var login *sourceSyncLoginError
-	return errors.As(err, &login)
+	return errors.As(err, &login) || errors.Is(err, fntv.ErrAuth)
 }
 
 func (c *sourceSyncClient) authorize(ctx context.Context, rejected string) (string, string, error) {
@@ -270,6 +290,9 @@ func (c *sourceSyncClient) get(ctx context.Context, path func(string) string, q 
 	return err
 }
 func (c *sourceSyncClient) Libraries(ctx context.Context) ([]emby.Library, error) {
+	if c.fn != nil {
+		return c.fn.Libraries(ctx)
+	}
 	var result struct {
 		Items []struct{ ID, Name, CollectionType string }
 	}
@@ -303,6 +326,10 @@ func (c *sourceSyncClient) listPage(ctx context.Context, library string, start i
 	return c.browsePage(ctx, library, "", start, sourceSyncPage, nil)
 }
 func (c *sourceSyncClient) browsePage(ctx context.Context, library, keyword string, start, limit int, ids []string) (sourceSyncItems, error) {
+	if c.fn != nil {
+		page, err := c.fn.Browse(ctx, library, keyword, start, limit, ids)
+		return sourceSyncItems{Items: page.Items, TotalRecordCount: page.TotalRecordCount}, err
+	}
 	var page sourceSyncItems
 	q := url.Values{"ParentId": {library}, "Recursive": {"true"}, "IncludeItemTypes": {"Movie,Series,Video,MusicVideo"}, "SortBy": {"SortName"}, "SortOrder": {"Ascending"}, "Fields": {c.provider.ItemFields()}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(limit)}}
 	if keyword != "" {
@@ -333,10 +360,20 @@ func (c *sourceSyncClient) hasAncestor(ctx context.Context, item, library string
 }
 
 func (c *sourceSyncClient) Episodes(ctx context.Context, id string) ([]emby.Item, error) {
+	if c.fn != nil {
+		return c.fn.Episodes(ctx, id)
+	}
 	var result struct{ Items []emby.Item }
 	q := url.Values{"Fields": {c.provider.ItemFields()}}
 	err := c.get(ctx, func(user string) string { q.Set("UserId", user); return "/Shows/" + url.PathEscape(id) + "/Episodes" }, q, &result)
 	return result.Items, err
+}
+
+func (c *sourceSyncClient) Hydrate(ctx context.Context, item emby.Item) (emby.Item, error) {
+	if c.fn != nil {
+		return c.fn.Hydrate(ctx, item)
+	}
+	return item, nil
 }
 
 // Metadata for at most one page is retained; workers write to distinct slots,

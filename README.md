@@ -9,7 +9,7 @@ Jumedia 是一个聚合 Emby、Jellyfin、飞牛影视等媒体源和弹弹 Play
 - **直播**：直播间、分区、m3u8 拉流转播、把点播视频转码后循环转播，以及基于 WebSocket 的直播聊天。
 - **社区**：评论、点赞、投币、收藏夹、稍后再看、历史、关注、空间、动态、粉丝勋章。
 - **创作中心与管理后台**：稿件与数据、直播设置、用户、审核、轮播、站点与服务器设置、操作日志。
-- **媒体数据源**：接入 Emby 或 Jellyfin 媒体库，自动同步为稿件与合集，图片经服务端代理与缓存，点播可按数据源选择代理或直连。
+- **媒体数据源**：接入 Emby、Jellyfin 或飞牛影视媒体库，自动同步为稿件与合集，图片经服务端代理与缓存。Emby、Jellyfin 点播可选择代理或直连，飞牛影视使用代理播放。接入规则见[接口文档](docs/api.md#媒体数据源)。
 - **数据库**：SQLite（默认，零配置）或 PostgreSQL，启动时自动迁移。
 
 ## 快速开始
@@ -351,6 +351,7 @@ internal/store/     数据模型、查询与迁移
 internal/seed/      基础初始化、管理员引导与演示包生成
 internal/render/    响应渲染
 internal/emby/      Emby、Jellyfin 客户端与媒体代理
+internal/fntv/      飞牛影视客户端与原文件读取
 internal/dm/        protobuf 弹幕
 internal/hls/       HLS 播放列表拉取与转播
 internal/testutil/  测试工具

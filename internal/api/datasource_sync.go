@@ -102,6 +102,15 @@ type sourceMirror struct {
 func mirrorSource(ctx context.Context, client interface {
 	Episodes(context.Context, string) ([]emby.Item, error)
 }, ds *store.DataSource, regions []store.Region, lib store.DataSourceLibrary, item emby.Item) (*sourceMirror, error) {
+	if hydrator, ok := client.(interface {
+		Hydrate(context.Context, emby.Item) (emby.Item, error)
+	}); ok {
+		var err error
+		item, err = hydrator.Hydrate(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+	}
 	pages := []store.Page{}
 	filenames := map[string]string{}
 	page := func(e emby.Item, part string) store.Page {
@@ -481,7 +490,7 @@ func saveSourceSyncArchive(ctx context.Context, tx *db.Tx, ds *store.DataSource,
 		if name == "" {
 			name = ds.Name
 		}
-		a = &store.Archive{AID: aid, BVID: store.AV2BV(aid), MID: ds.MID, Ctime: m.ctime, Pubdate: m.pubdate, State: state, Copyright: 2, Source: emby.Provider(ds.Type).Name() + " · " + name, Chapters: []store.Chapter{}, Subtitles: []store.Subtitle{}, OriginDS: ds.ID, OriginItem: result.item, Origin: &store.ArchiveOrigin{Type: ds.Type, Locked: []string{}}}
+		a = &store.Archive{AID: aid, BVID: store.AV2BV(aid), MID: ds.MID, Ctime: m.ctime, Pubdate: m.pubdate, State: state, Copyright: 2, Source: emby.Provider(ds.Type).Name() + " " + name, Chapters: []store.Chapter{}, Subtitles: []store.Subtitle{}, OriginDS: ds.ID, OriginItem: result.item, Origin: &store.ArchiveOrigin{Type: ds.Type, Locked: []string{}}}
 		// The FK requires a configured region even before the origin update.
 		a.TID = m.meta.TID
 		if e = store.InsertArchive(ctx, tx, a); e != nil {

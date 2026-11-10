@@ -13,9 +13,13 @@ type Provider string
 const (
 	Emby     Provider = "emby"
 	Jellyfin Provider = "jellyfin"
+	FnTV     Provider = "fntv"
 )
 
 func (p Provider) Name() string {
+	if p == FnTV {
+		return "飞牛影视"
+	}
 	if p == Jellyfin {
 		return "Jellyfin"
 	}

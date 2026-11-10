@@ -182,11 +182,14 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			provider = emby.Provider(ds.Type)
 		}
 	}
-	if provider != emby.Emby && provider != emby.Jellyfin {
+	if provider != emby.Emby && provider != emby.Jellyfin && provider != emby.FnTV {
 		return nil, Fail(-400, "不支持的数据源类型")
 	}
 	if ds != nil && string(provider) != ds.Type {
 		return nil, Fail(-400, "已保存的数据源不能更改类型")
+	}
+	if v, ok := c.P["proxy_playback"]; provider == emby.FnTV && ok && !BoolParam(v) {
+		return nil, Fail(-400, "飞牛影视需要通过 Jumedia 代理播放")
 	}
 	address, username := strings.TrimSpace(c.P["url"]), strings.TrimSpace(c.P["username"])
 	if address == "" {
@@ -237,7 +240,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 	if ds != nil {
 		system = ds.System
 	}
-	client, e := provider.NewDataSource(address, username, password, 0, system || Truthy(settings["dataSourcePrivateNetwork"]))
+	client, e := newSourceMediaClient(provider, address, username, password, 0, system || Truthy(settings["dataSourcePrivateNetwork"]))
 	if e != nil {
 		return nil, Fail(-400, e.Error())
 	}

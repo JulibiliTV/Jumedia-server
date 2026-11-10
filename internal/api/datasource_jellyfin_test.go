@@ -61,7 +61,7 @@ func TestJellyfinDataSource(t *testing.T) {
 		id := int64(d["id"].(float64))
 		ds := sourceWait(t, s, id)
 		movie := sourceArchives(t, s, id)["movie"]
-		if ds.Type != "jellyfin" || movie == nil || movie.Origin.Type != ds.Type || movie.Source != "Jellyfin · Test Library" {
+		if ds.Type != "jellyfin" || movie == nil || movie.Origin.Type != ds.Type || movie.Source != "Jellyfin Test Library" {
 			t.Fatal("incorrect source or archive origin")
 		}
 		proxy := sourceHTTP(s, emby.DSPath(id, "movie", "moviesrc", "direct"))

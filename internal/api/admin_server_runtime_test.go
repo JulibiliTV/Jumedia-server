@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"jumedia-server/internal/config"
-	"jumedia-server/internal/emby"
 	"jumedia-server/internal/seed"
 	"jumedia-server/internal/store"
 )
@@ -87,7 +86,7 @@ func TestServerDemoDataSourceSettings(t *testing.T) {
 	if err = s.Store.SetSetting(t.Context(), "dataSourcePrivateNetwork", true); err != nil {
 		t.Fatal(err)
 	}
-	sourceClient := func() *emby.Client {
+	sourceClient := func() sourceMediaClient {
 		t.Helper()
 		client, err := s.sourceClient(t.Context(), ds)
 		if err != nil {

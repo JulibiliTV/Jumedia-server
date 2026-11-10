@@ -46,7 +46,9 @@ func (p Provider) NormalizeBase(address string) (string, error) {
 		return "", errors.New(p.Name() + " 服务器地址格式不正确")
 	}
 	path := strings.TrimRight(u.Path, "/")
-	if p != Jellyfin && !strings.HasSuffix(strings.ToLower(path), "/emby") {
+	if p == FnTV && !strings.HasSuffix(path, "/v") {
+		path += "/v"
+	} else if p != Jellyfin && p != FnTV && !strings.HasSuffix(strings.ToLower(path), "/emby") {
 		path += "/emby"
 	}
 	u.Path = path

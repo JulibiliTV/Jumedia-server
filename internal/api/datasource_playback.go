@@ -21,7 +21,7 @@ func (s *Server) playbackMediaURL(c *Ctx, media string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if ds.ProxyPlayback {
+	if ds.ProxyPlayback || ds.Type == string(emby.FnTV) {
 		return discoverAbsoluteMedia(s.Origin(c.R), media)
 	}
 	// Direct playback grants the same media access as the proxy route.

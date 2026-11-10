@@ -271,7 +271,7 @@ func TestDataSourceSyncOrigins(t *testing.T) {
 		if len(a) != 4 {
 			t.Fatal(a)
 		}
-		if a["movie"].State != -1 || a["movie"].MID != user.MID || a["movie"].TID != 1005 || a["movie"].Copyright != 2 || a["movie"].Source != "Emby · 假 Emby" || !strings.HasSuffix(a["movie"].Pages[0].Media, ":direct") || !strings.HasSuffix(a["mkv"].Pages[0].Media, ":raw-mkv") {
+		if a["movie"].State != -1 || a["movie"].MID != user.MID || a["movie"].TID != 1005 || a["movie"].Copyright != 2 || a["movie"].Source != "Emby 假 Emby" || !strings.HasSuffix(a["movie"].Pages[0].Media, ":direct") || !strings.HasSuffix(a["mkv"].Pages[0].Media, ":raw-mkv") {
 			t.Fatal(a["movie"])
 		}
 		if a["movie"].Ctime != sourceUnix("2021-03-04T00:00:00Z") || a["movie"].Pubdate != sourceUnix("2020-01-02T00:00:00Z") {

@@ -21,7 +21,7 @@ import (
 
 type sourceClient struct {
 	key    string
-	client *emby.Client
+	client sourceMediaClient
 }
 type sourceRuntime struct {
 	images  *imageCacheRuntime
@@ -189,7 +189,7 @@ func (s *Server) decryptPassword(enc string) (string, error) {
 	}
 	return string(p), nil
 }
-func (s *Server) sourceClient(ctx context.Context, ds *store.DataSource) (*emby.Client, error) {
+func (s *Server) sourceClient(ctx context.Context, ds *store.DataSource) (sourceMediaClient, error) {
 	if e := s.InitDataSources(ctx); e != nil {
 		return nil, e
 	}
@@ -216,7 +216,7 @@ func (s *Server) sourceClient(ctx context.Context, ds *store.DataSource) (*emby.
 	if e != nil {
 		return nil, e
 	}
-	client, e := emby.Provider(ds.Type).NewDataSource(ds.URL, ds.Username, password, ds.ID, allow)
+	client, e := newSourceMediaClient(emby.Provider(ds.Type), ds.URL, ds.Username, password, ds.ID, allow)
 	if e == nil {
 		r.clients[ds.ID] = sourceClient{key, client}
 	}
