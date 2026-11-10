@@ -182,7 +182,7 @@ func (s *Server) sourceAction(c *Ctx, admin bool, action string) (any, error) {
 			provider = emby.Provider(ds.Type)
 		}
 	}
-	if provider != emby.Emby && provider != emby.Jellyfin && provider != emby.FnTV {
+	if provider != emby.Emby && provider != emby.Jellyfin && provider != emby.FnTV && provider != emby.Plex {
 		return nil, Fail(-400, "不支持的数据源类型")
 	}
 	if ds != nil && string(provider) != ds.Type {

@@ -14,9 +14,13 @@ const (
 	Emby     Provider = "emby"
 	Jellyfin Provider = "jellyfin"
 	FnTV     Provider = "fntv"
+	Plex     Provider = "plex"
 )
 
 func (p Provider) Name() string {
+	if p == Plex {
+		return "Plex"
+	}
 	if p == FnTV {
 		return "飞牛影视"
 	}

@@ -48,7 +48,7 @@ func (p Provider) NormalizeBase(address string) (string, error) {
 	path := strings.TrimRight(u.Path, "/")
 	if p == FnTV && !strings.HasSuffix(path, "/v") {
 		path += "/v"
-	} else if p != Jellyfin && p != FnTV && !strings.HasSuffix(strings.ToLower(path), "/emby") {
+	} else if p != Jellyfin && p != FnTV && p != Plex && !strings.HasSuffix(strings.ToLower(path), "/emby") {
 		path += "/emby"
 	}
 	u.Path = path

@@ -543,6 +543,17 @@ func upsertSourceCollection(ctx context.Context, tx *db.Tx, ds *store.DataSource
 		name = ds.Name
 	}
 	meta := store.CollectionMeta{Title: sourceClip(lib.Name, 40), Intro: "同步自 " + emby.Provider(ds.Type).Name() + "「" + name + "」的媒体库", Cover: sourceImage(ds.ID, lib.ID, "Primary", "")}
+	if ds.Type == string(emby.Plex) {
+		// Section IDs are not metadata IDs; use an imported item's artwork.
+		meta.Cover = ""
+		if len(aids) > 0 {
+			archive, err := store.ArchiveFrom(ctx, tx, aids[0])
+			if err != nil {
+				return err
+			}
+			meta.Cover = archive.Pic
+		}
+	}
 	var id int64
 	err := tx.QueryRowContext(ctx, "SELECT id FROM collections WHERE origin_ds=? AND origin_library=?", ds.ID, lib.ID).Scan(&id)
 	var c *store.Collection

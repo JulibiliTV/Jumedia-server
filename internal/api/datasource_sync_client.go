@@ -19,6 +19,7 @@ import (
 
 	"jumedia-server/internal/emby"
 	"jumedia-server/internal/fntv"
+	"jumedia-server/internal/plex"
 	"jumedia-server/internal/store"
 )
 
@@ -28,6 +29,7 @@ const sourceSyncPage = 100
 // Keep this private to the datasource domain until the shared Emby client has a
 // request-policy interface (including authentication and response-body reads).
 type sourceSyncClient struct {
+	px                       *plex.Client
 	fn                       *fntv.Client
 	provider                 emby.Provider
 	base, username, password string
@@ -89,9 +91,24 @@ func newSourceSyncClient(provider emby.Provider, address, username, password str
 			return func() { <-c.slots }, nil
 		}
 	}
+	if provider == emby.Plex {
+		c.px, err = plex.New(address, username, password, allowPrivate)
+		if err != nil {
+			return nil, err
+		}
+		c.px.RequestGate = func(ctx context.Context) (func(), error) {
+			if err := c.acquire(ctx); err != nil {
+				return nil, err
+			}
+			return func() { <-c.slots }, nil
+		}
+	}
 	return c, nil
 }
 func (c *sourceSyncClient) close() {
+	if c.px != nil {
+		c.px.Close()
+	}
 	c.http.CloseIdleConnections()
 	if c.fn != nil {
 		c.fn.Close()
@@ -245,7 +262,7 @@ func (e *sourceSyncLoginError) Error() string { return e.err.Error() }
 func (e *sourceSyncLoginError) Unwrap() error { return e.err }
 func sourceSyncLoginFailed(err error) bool {
 	var login *sourceSyncLoginError
-	return errors.As(err, &login) || errors.Is(err, fntv.ErrAuth)
+	return errors.As(err, &login) || errors.Is(err, fntv.ErrAuth) || errors.Is(err, plex.ErrAuth)
 }
 
 func (c *sourceSyncClient) authorize(ctx context.Context, rejected string) (string, string, error) {
@@ -290,6 +307,9 @@ func (c *sourceSyncClient) get(ctx context.Context, path func(string) string, q 
 	return err
 }
 func (c *sourceSyncClient) Libraries(ctx context.Context) ([]emby.Library, error) {
+	if c.px != nil {
+		return c.px.Libraries(ctx)
+	}
 	if c.fn != nil {
 		return c.fn.Libraries(ctx)
 	}
@@ -326,6 +346,10 @@ func (c *sourceSyncClient) listPage(ctx context.Context, library string, start i
 	return c.browsePage(ctx, library, "", start, sourceSyncPage, nil)
 }
 func (c *sourceSyncClient) browsePage(ctx context.Context, library, keyword string, start, limit int, ids []string) (sourceSyncItems, error) {
+	if c.px != nil {
+		p, e := c.px.Browse(ctx, library, keyword, start, limit, ids)
+		return sourceSyncItems{Items: p.Items, TotalRecordCount: p.TotalRecordCount}, e
+	}
 	if c.fn != nil {
 		page, err := c.fn.Browse(ctx, library, keyword, start, limit, ids)
 		return sourceSyncItems{Items: page.Items, TotalRecordCount: page.TotalRecordCount}, err
@@ -360,6 +384,9 @@ func (c *sourceSyncClient) hasAncestor(ctx context.Context, item, library string
 }
 
 func (c *sourceSyncClient) Episodes(ctx context.Context, id string) ([]emby.Item, error) {
+	if c.px != nil {
+		return c.px.Episodes(ctx, id)
+	}
 	if c.fn != nil {
 		return c.fn.Episodes(ctx, id)
 	}
@@ -370,6 +397,9 @@ func (c *sourceSyncClient) Episodes(ctx context.Context, id string) ([]emby.Item
 }
 
 func (c *sourceSyncClient) Hydrate(ctx context.Context, item emby.Item) (emby.Item, error) {
+	if c.px != nil {
+		return c.px.Hydrate(ctx, item)
+	}
 	if c.fn != nil {
 		return c.fn.Hydrate(ctx, item)
 	}

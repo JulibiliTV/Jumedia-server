@@ -6,6 +6,7 @@ import (
 
 	"jumedia-server/internal/emby"
 	"jumedia-server/internal/fntv"
+	"jumedia-server/internal/plex"
 )
 
 type sourceMediaClient interface {
@@ -19,6 +20,9 @@ type sourceMediaClient interface {
 }
 
 func newSourceMediaClient(provider emby.Provider, address, username, password string, id int64, allowPrivate bool) (sourceMediaClient, error) {
+	if provider == emby.Plex {
+		return plex.New(address, username, password, allowPrivate)
+	}
 	if provider == emby.FnTV {
 		return fntv.New(address, username, password, allowPrivate)
 	}
