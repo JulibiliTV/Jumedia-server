@@ -18,7 +18,7 @@ func TestMigrateAndTransactions(t *testing.T) {
 			t.Fatal(err)
 		}
 		var n int
-		if err := s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_versions").Scan(&n); err != nil || n != 18 {
+		if err := s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_versions").Scan(&n); err != nil || n != 19 {
 			t.Fatalf("versions: %d %v", n, err)
 		}
 		sentinel := errors.New("rollback")

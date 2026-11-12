@@ -220,7 +220,7 @@ func (r *Renderer) FeedCard(ctx context.Context, a store.Archive) (M, error) {
 	if len(a.Pages) > 0 {
 		player["cid"] = a.Pages[0].CID
 	}
-	return M{"card_type": "small_cover_v2", "card_goto": "av", "goto": "av", "param": strconv.FormatInt(a.AID, 10), "cover": a.Pic, "title": a.Title, "uri": "/video/" + a.BVID, "cover_left_text_2": CompactCount(a.Stat.View), "cover_left_text_3": CompactCount(a.Stat.Danmaku), "cover_right_text": FormatDuration(TotalDuration(a)), "args": M{"up_id": a.MID, "up_name": o["name"], "rid": a.TID, "rname": region, "aid": a.AID}, "player_args": player, "bvid": a.BVID, "pubdate": a.Pubdate, "owner": o, "three_point": M{"dislike_reasons": []M{{"id": 1, "name": "不感兴趣"}, {"id": 4, "name": fmt.Sprint("UP主：", o["name"])}, {"id": 3, "name": "分区：" + region}}}}, nil
+	return M{"card_type": "small_cover_v2", "card_goto": "av", "goto": "av", "param": strconv.FormatInt(a.AID, 10), "cover": a.Pic, "title": a.Title, "uri": "/video/" + a.BVID, "cover_left_text_2": CompactCount(a.Stat.View), "cover_left_text_3": CompactCount(a.Stat.Danmaku), "cover_right_text": FormatDuration(TotalDuration(a)), "args": M{"up_id": a.MID, "up_name": o["name"], "rid": a.TID, "rname": region, "aid": a.AID}, "player_args": player, "bvid": a.BVID, "pubdate": a.Pubdate, "owner": o, "three_point": M{"dislike_reasons": []M{{"id": 1, "name": "不感兴趣"}, {"id": 4, "name": fmt.Sprint("UP主：", o["name"])}}}}, nil
 }
 func SeasonCard(s store.Season, extra ...M) M {
 	copyright, duration := s.Copyright, 0

@@ -15,10 +15,11 @@ func (s *Server) registerDiscover() {
 	s.handle("/x/web-interface/popular/series/list", s.discoverWeeklyList)
 	s.handle("/x/web-interface/popular/series/one", s.discoverWeeklyOne)
 	s.handle("/x/web-interface/ranking/region", s.discoverRegionRanking)
-	s.handle("/x/web-interface/feedback/dislike", func(c *Ctx) (any, error) { _, err := c.CSRF(); return nil, err })
+	s.handle("/x/web-interface/feedback/dislike", s.recommendationFeedback)
+	s.handle("/x/web-interface/feedback/dislike/cancel", s.cancelRecommendationFeedback)
 	s.handle("/x/v2/feed/index", s.discoverFeed)
 	s.handle("/x/web-interface/wbi/index/top/feed/rcmd", s.discoverWebFeed)
-	s.handle("/x/feed/dislike", func(c *Ctx) (any, error) { return nil, nil })
+	s.handle("/x/feed/dislike", s.legacyRecommendationFeedback)
 	s.handle("/x/web-interface/popular", s.discoverPopular)
 	s.handle("/x/web-interface/ranking/v2", s.discoverRanking)
 	s.handle("/x/web-interface/region/feed/rcmd", s.discoverRegion)
@@ -64,6 +65,12 @@ func (s *Server) discoverFeed(c *Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.Me != nil {
+		list, err = s.Store.FilterRecommendations(c.Context(), c.Me.MID, list)
+		if err != nil {
+			return nil, err
+		}
+	}
 	idx := NumberUnicode(c.P["idx"], 0)
 	sort.SliceStable(list, func(i, j int) bool {
 		return math.Mod(float64(list[i].AID)*2654435761+idx, 1000) < math.Mod(float64(list[j].AID)*2654435761+idx, 1000)
@@ -76,7 +83,7 @@ func (s *Server) discoverFeed(c *Ctx) (any, error) {
 		}
 	}
 	items := make([]render.M, 0, 20)
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 20 && len(list) > 0; i++ {
 		n := math.Mod(idx+float64(i), float64(len(list)))
 		if math.IsNaN(n) || n < 0 || math.Trunc(n) != n {
 			return nil, fmt.Errorf("feed index has no archive")

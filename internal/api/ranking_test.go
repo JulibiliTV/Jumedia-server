@@ -59,7 +59,7 @@ func TestRegionRankingAndFeedback(t *testing.T) {
 		session := login(t, s, "jumedia", "admin123")
 		discoverFailure(t, post(t, s, "/x/web-interface/feedback/dislike", nil), -101, "账号未登录")
 		discoverFailure(t, post(t, s, "/x/web-interface/feedback/dislike", nil, session), -111, "csrf 校验失败")
-		v = post(t, s, "/x/web-interface/feedback/dislike", url.Values{"csrf": {session.CSRF}}, session)
+		v = post(t, s, "/x/web-interface/feedback/dislike", url.Values{"csrf": {session.CSRF}, "goto": {"ad"}}, session)
 		assertCode(t, v, 0)
 		if v["data"] != nil {
 			t.Fatal(v)

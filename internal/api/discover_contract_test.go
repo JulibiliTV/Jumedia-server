@@ -93,7 +93,7 @@ func TestDiscoverFeedAndLists(t *testing.T) {
 			}
 		}
 		v := post(t, s, "/x/feed/dislike", url.Values{"id": {"1"}})
-		assertCode(t, v, 0)
+		assertCode(t, v, -101)
 		if v["data"] != nil {
 			t.Fatal(v)
 		}
@@ -170,11 +170,14 @@ func TestDiscoverFeedAndLists(t *testing.T) {
 				t.Fatal(v)
 			}
 		}
-		// Empty feed and invalid array indexes throw in the Mock, hence -500.
+		// Invalid array indexes fail, but an empty recommendation pool is normal.
 		assertCode(t, get(t, s, "/x/v2/feed/index?idx=-1"), -500)
 		assertCode(t, get(t, s, "/x/v2/feed/index?idx=0.5"), -500)
 		discoverExec(t, s, "UPDATE archives SET state=-1")
-		assertCode(t, get(t, s, "/x/v2/feed/index"), -500)
+		empty := discoverData(t, get(t, s, "/x/v2/feed/index"))
+		if len(empty["items"].([]any)) != 0 {
+			t.Fatal(empty)
+		}
 	})
 }
 

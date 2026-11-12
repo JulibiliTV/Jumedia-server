@@ -1,5 +1,9 @@
 # Jumedia 接口参考
 
+## 首页推荐反馈
+
+视频和 UP 主的“不感兴趣”、撤销、用户隔离与推荐过滤规则见[首页推荐反馈](recommendation-feedback.md)。
+
 ## 账号弹幕设置
 
 `GET /x/v2/dm/web/view?type=1&oid=1` 返回 protobuf，外层字段 10 是当前账号的播放设置。登录前可以用此请求读取默认值。账号设置独立于视频，登录后可通过 `POST /x/v2/dm/web/config` 携带 CSRF 更新指定参数，未提交的设置继续保留。

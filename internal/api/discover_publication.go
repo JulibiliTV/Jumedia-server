@@ -14,6 +14,12 @@ func (s *Server) discoverWebFeed(c *Ctx) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.Me != nil {
+		list, err = s.Store.FilterRecommendations(c.Context(), c.Me.MID, list)
+		if err != nil {
+			return nil, err
+		}
+	}
 	sort.SliceStable(list, func(i, j int) bool {
 		return math.Mod(float64(list[i].AID)*2654435761+idx, 1000) < math.Mod(float64(list[j].AID)*2654435761+idx, 1000)
 	})
@@ -38,6 +44,7 @@ func (s *Server) discoverWebFeed(c *Ctx) (any, error) {
 			return nil, err
 		}
 		card["id"], card["goto"], card["uri"], card["is_followed"] = a.AID, "av", "/video/"+a.BVID, 0
+		card["dislike_switch"] = c.Me != nil
 		if follows[a.MID] {
 			card["is_followed"] = 1
 		}

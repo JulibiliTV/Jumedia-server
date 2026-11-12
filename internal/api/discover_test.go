@@ -22,7 +22,7 @@ func TestDiscoverRoutes(t *testing.T) {
 			raw         bool
 		}{
 			{"/x/v2/feed/index", "items", false},
-			{"/x/feed/dislike", "", false},
+			{fmt.Sprintf("/x/feed/dislike?access_key=%s&goto=av&id=%d&reason_id=1", session.Access, a.AID), "", false},
 			{"/x/web-interface/popular", "list", false},
 			{"/x/web-interface/ranking/v2", "list", false},
 			{fmt.Sprintf("/x/web-interface/region/feed/rcmd?from_region=%d", a.TID), "archives", false},
