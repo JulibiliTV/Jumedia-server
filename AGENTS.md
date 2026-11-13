@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-Jumedia-server 是 Jumedia 的 Go 后端，与同级 `Jumedia-web` 和 `JulibiliTV` 共用接口契约。支持 SQLite 与 PostgreSQL，启动时自动迁移并幂等补齐基础设置。
+Jumedia-server 是 Jumedia 的 Go 后端，与同级 `Jumedia-web` 和电视客户端 JumediaTV（代码库 `JulibiliTV`）共用接口契约。支持 SQLite 与 PostgreSQL，启动时自动迁移并幂等补齐基础设置。
 
 ## 开发约定
 
