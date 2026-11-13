@@ -5,13 +5,13 @@
 services:
   # Installs the web app into the shared `web` volume and exits; the server reads it on every request.
   web:
-    image: ${JUMEDIA_WEB_IMAGE:-ghcr.io/julibilitv/jumedia-web:latest}
+    image: ${JUMEDIA_WEB_IMAGE:-ghcr.io/jumedia/jumedia-web:latest}
     restart: "no"
     volumes:
       - web:/web
 
   jumedia:
-    image: ${JUMEDIA_IMAGE:-ghcr.io/julibilitv/jumedia-server:latest}
+    image: ${JUMEDIA_IMAGE:-ghcr.io/jumedia/jumedia-server:latest}
     container_name: jumedia
     restart: unless-stopped
     depends_on:

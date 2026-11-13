@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Server only. The web app ships as its own image (ghcr.io/julibilitv/jumedia-web) that installs
+# Server only. The web app ships as its own image (ghcr.io/jumedia/jumedia-web) that installs
 # its files into the /web volume, which this server serves; see deploy/compose.yaml.
 
 FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS server

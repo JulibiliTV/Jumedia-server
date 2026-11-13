@@ -30,7 +30,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/julibilitv/jumedia-server
+          images: ghcr.io/jumedia/jumedia-server
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=

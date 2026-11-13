@@ -105,7 +105,7 @@ go run ./cmd/jumedia reset
 
 ### Docker
 
-服务端镜像 `ghcr.io/julibilitv/jumedia-server` 包含服务端和 ffmpeg，数据保存在容器内的 `/data`（以 uid 10001 运行）。网页端单独发布为 `ghcr.io/julibilitv/jumedia-web`（见 Jumedia-web），运行时把网页文件装进与服务端共享的 `/web` 卷，由服务端提供（`JUMEDIA_WEB_DIR` 与 `JUMEDIA_STATIC_DIR` 都指向 `/web`）。两个仓库推送到 `main` 后，各自的 GitHub Actions 会构建并发布对应镜像。
+服务端镜像 `ghcr.io/jumedia/jumedia-server` 包含服务端和 ffmpeg，数据保存在容器内的 `/data`（以 uid 10001 运行）。网页端单独发布为 `ghcr.io/jumedia/jumedia-web`（见 Jumedia-web），运行时把网页文件装进与服务端共享的 `/web` 卷，由服务端提供（`JUMEDIA_WEB_DIR` 与 `JUMEDIA_STATIC_DIR` 都指向 `/web`）。两个仓库推送到 `main` 后，各自的 GitHub Actions 会构建并发布对应镜像。
 
 本地构建：
 
